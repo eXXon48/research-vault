@@ -1,0 +1,18 @@
+---
+applet: "tee"
+tags: [busybox/command]
+---
+
+# `tee`
+
+```text
+Usage: tee [-ai] [FILE]...
+
+Copy stdin to each FILE, and also to stdout
+
+	-a	Append to the given FILEs, don't overwrite
+	-i	Ignore interrupt signals (SIGINT)
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

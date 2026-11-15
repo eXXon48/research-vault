@@ -1,0 +1,18 @@
+---
+applet: "killall"
+tags: [busybox/command]
+---
+
+# `killall`
+
+```text
+Usage: killall [-l] [-q] [-SIG] PROCESS_NAME...
+
+Send a signal (default: TERM) to given processes
+
+	-l	List all signal names and numbers
+	-q	Don't complain if no processes were killed
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

@@ -1,0 +1,19 @@
+---
+applet: "rm"
+tags: [busybox/command]
+---
+
+# `rm`
+
+```text
+Usage: rm [-irf] FILE...
+
+Remove (unlink) FILEs
+
+	-i	Always prompt before removing
+	-f	Never prompt
+	-R,-r	Recurse
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

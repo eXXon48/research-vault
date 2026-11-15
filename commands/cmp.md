@@ -1,0 +1,19 @@
+---
+applet: "cmp"
+tags: [busybox/command]
+---
+
+# `cmp`
+
+```text
+Usage: cmp [-l] [-s] FILE1 [FILE2 [SKIP1 [SKIP2]]]
+
+Compare FILE1 with FILE2 (or stdin)
+
+	-l	Write the byte numbers (decimal) and values (octal)
+		for all differing bytes
+	-s	Quiet
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

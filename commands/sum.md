@@ -1,0 +1,18 @@
+---
+applet: "sum"
+tags: [busybox/command]
+---
+
+# `sum`
+
+```text
+Usage: sum [-rs] [FILE]...
+
+Checksum and count the blocks in a file
+
+	-r	Use BSD sum algorithm (1K blocks)
+	-s	Use System V sum algorithm (512byte blocks)
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

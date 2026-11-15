@@ -1,0 +1,22 @@
+---
+applet: "uniq"
+tags: [busybox/command]
+---
+
+# `uniq`
+
+```text
+Usage: uniq [-cdu][-f,s,w N] [INPUT [OUTPUT]]
+
+Discard duplicate lines
+
+	-c	Prefix lines by the number of occurrences
+	-d	Only print duplicate lines
+	-u	Only print unique lines
+	-f N	Skip first N fields
+	-s N	Skip first N chars (after any skipped fields)
+	-w N	Compare N characters in line
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

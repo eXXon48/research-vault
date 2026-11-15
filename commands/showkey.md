@@ -1,0 +1,19 @@
+---
+applet: "showkey"
+tags: [busybox/command]
+---
+
+# `showkey`
+
+```text
+Usage: showkey [-a | -k | -s]
+
+Show keys pressed
+
+	-a	Display decimal/octal/hex values of the keys
+	-k	Display interpreted keycodes (default)
+	-s	Display raw scan-codes
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

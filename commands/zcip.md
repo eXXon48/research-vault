@@ -1,0 +1,23 @@
+---
+applet: "zcip"
+tags: [busybox/command]
+---
+
+# `zcip`
+
+```text
+Usage: zcip [OPTIONS] IFACE SCRIPT
+
+Manage a ZeroConf IPv4 link-local address
+
+	-f		Run in foreground
+	-q		Quit after obtaining address
+	-r 169.254.x.x	Request this address first
+	-v		Verbose
+
+With no -q, runs continuously monitoring for ARP conflicts,
+exits only on I/O errors (link down etc)
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

@@ -1,0 +1,19 @@
+---
+applet: "logger"
+tags: [busybox/command]
+---
+
+# `logger`
+
+```text
+Usage: logger [OPTIONS] [MESSAGE]
+
+Write MESSAGE (or stdin) to syslog
+
+	-s	Log to stderr as well as the system log
+	-t TAG	Log using the specified tag (defaults to user name)
+	-p PRIO	Priority (numeric or facility.level pair)
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

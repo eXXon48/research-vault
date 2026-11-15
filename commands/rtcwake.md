@@ -1,0 +1,23 @@
+---
+applet: "rtcwake"
+tags: [busybox/command]
+---
+
+# `rtcwake`
+
+```text
+Usage: rtcwake [-a | -l | -u] [-d DEV] [-m MODE] [-s SEC | -t TIME]
+
+Enter a system sleep state until specified wakeup time
+
+	-a,--auto	Read clock mode from adjtime
+	-l,--local	Clock is set to local time
+	-u,--utc	Clock is set to UTC time
+	-d,--device=DEV	Specify the RTC device
+	-m,--mode=MODE	Set the sleep state (default: standby)
+	-s,--seconds=SEC Set the timeout in SEC seconds from now
+	-t,--time=TIME	Set the timeout to TIME seconds from epoch
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

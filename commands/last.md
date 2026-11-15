@@ -1,0 +1,18 @@
+---
+applet: "last"
+tags: [busybox/command]
+---
+
+# `last`
+
+```text
+Usage: last [-HW] [-f FILE]
+
+Show listing of the last users that logged into the system
+
+	-W	Display with no host column truncation
+	-f FILE Read from FILE instead of /var/log/wtmp
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

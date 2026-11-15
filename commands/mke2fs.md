@@ -1,0 +1,21 @@
+---
+applet: "mke2fs"
+tags: [busybox/command]
+---
+
+# `mke2fs`
+
+```text
+Usage: mke2fs [-Fn] [-b BLK_SIZE] [-i INODE_RATIO] [-I INODE_SIZE] [-m RESERVED_PERCENT] [-L LABEL] BLOCKDEV [KBYTES]
+
+	-b BLK_SIZE	Block size, bytes
+	-F		Force
+	-i RATIO	Max number of files is filesystem_size / RATIO
+	-I BYTES	Inode size (min 128)
+	-L LBL		Volume label
+	-m PERCENT	Percent of blocks to reserve for admin
+	-n		Dry run
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

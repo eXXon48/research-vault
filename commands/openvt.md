@@ -1,0 +1,19 @@
+---
+applet: "openvt"
+tags: [busybox/command]
+---
+
+# `openvt`
+
+```text
+Usage: openvt [-c N] [-sw] [PROG ARGS]
+
+Start PROG on a new virtual terminal
+
+	-c N	Use specified VT
+	-s	Switch to the VT
+	-w	Wait for PROG to exit
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

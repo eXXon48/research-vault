@@ -1,0 +1,19 @@
+---
+applet: "fold"
+tags: [busybox/command]
+---
+
+# `fold`
+
+```text
+Usage: fold [-bs] [-w WIDTH] [FILE]...
+
+Wrap input lines in each FILE (or stdin), writing to stdout
+
+	-b	Count bytes rather than columns
+	-s	Break at spaces
+	-w	Use WIDTH columns instead of 80
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

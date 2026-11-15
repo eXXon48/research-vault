@@ -1,0 +1,18 @@
+---
+applet: "ps"
+tags: [busybox/command]
+---
+
+# `ps`
+
+```text
+Usage: ps [-o COL1,COL2=HEADER] [-T]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+	-T			Show threads
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

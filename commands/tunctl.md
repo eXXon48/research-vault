@@ -1,0 +1,22 @@
+---
+applet: "tunctl"
+tags: [busybox/command]
+---
+
+# `tunctl`
+
+```text
+Usage: tunctl [-f device] ([-t name] | -d name) [-u owner] [-g group] [-b]
+
+Create or delete tun interfaces
+
+	-f name		tun device (/dev/net/tun)
+	-t name		Create iface 'name'
+	-d name		Delete iface 'name'
+	-u owner	Set iface owner
+	-g group	Set iface group
+	-b		Brief output
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

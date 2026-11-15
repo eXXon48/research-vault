@@ -1,0 +1,22 @@
+---
+applet: "cut"
+tags: [busybox/command]
+---
+
+# `cut`
+
+```text
+Usage: cut [OPTIONS] [FILE]...
+
+Print selected fields from each input FILE to stdout
+
+	-b LIST	Output only bytes from LIST
+	-c LIST	Output only characters from LIST
+	-d CHAR	Use CHAR instead of tab as the field delimiter
+	-s	Output only the lines containing delimiter
+	-f N	Print only these fields
+	-n	Ignored
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

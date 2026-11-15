@@ -1,0 +1,17 @@
+---
+applet: "awk"
+tags: [busybox/command]
+---
+
+# `awk`
+
+```text
+Usage: awk [OPTIONS] [AWK_PROGRAM] [FILE]...
+
+	-v VAR=VAL	Set variable
+	-F SEP		Use SEP as field separator
+	-f FILE		Read program from FILE
+```
+
+---
+[[BusyBox|← All BusyBox commands]]

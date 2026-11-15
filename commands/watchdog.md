@@ -1,0 +1,21 @@
+---
+applet: "watchdog"
+tags: [busybox/command]
+---
+
+# `watchdog`
+
+```text
+Usage: watchdog [-t N[ms]] [-T N[ms]] [-F] DEV
+
+Periodically write to watchdog device DEV
+
+	-T N	Reboot after N seconds if not reset (default 60)
+	-t N	Reset every N seconds (default 30)
+	-F	Run in foreground
+
+Use 500ms to specify period in milliseconds
+```
+
+---
+[[BusyBox|← All BusyBox commands]]
