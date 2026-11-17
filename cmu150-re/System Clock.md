@@ -43,6 +43,13 @@ How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[CMU150]].
   ~56 years expires every pending start/connect/ping timeout at once. The runtime jump
   above (all services already up) did not hit this. The clock must be set either before
   `/jci/sm/sm` starts or once all SM stages have finished starting.
+- **Setting the clock once SM has finished starting works at boot.** The same SM `process`
+  service before `stage_1`, but running a shell script that waits for
+  `SM_SERVER_CMD_RUNNING` in `/tmp/smevents.txt` with no service still starting (plus a
+  5 s settle) and only then runs `hwclock -s -u`, set the clock at about 64 s uptime. The
+  boot completed normally: the service logs `SM_SVC_CMD_STARTED` at ~8.2 s (SM does not wait
+  for the script), `sm` and `opera` kept their PIDs over the following minute, and no
+  service was left starting. HMI time services follow the jump on their next 1-minute tick.
 - **The RTC is available before SM.** `/dev/rtc0` is the i.MX6 SNVS RTC, driver module
   `rtc_snvs` (`/lib/modules/3.0.35/kernel/drivers/rtc/rtc-snvs.ko`). No boot script loads it
   explicitly (it is autoloaded for the platform device); dmesg shows
