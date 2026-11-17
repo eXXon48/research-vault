@@ -118,6 +118,10 @@ How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[CMU150]].
     changed by it; it only picks the new RTC time up at the next boot's RTC-to-system copy.
   - GPS time sync also works: switching it on logs `blm_time_getLocation_cb … Setting UTC to
     …` and `blm_time_event (7-new TIME …)`; the RTC then matched real UTC within 1 s.
+  - Removing the library at runtime (deleting it and `/etc/ld.so.preload`) leaves it mapped
+    in every dynamically linked process that started with it (114 of 192 processes,
+    including `init`). `mount -o remount,ro /` then fails with "busy", so `/` stays
+    read-write until the next reboot. The next boot starts without the library.
 - **The RTC is available before SM.** `/dev/rtc0` is the i.MX6 SNVS RTC, driver module
   `rtc_snvs` (`/lib/modules/3.0.35/kernel/drivers/rtc/rtc-snvs.ko`). No boot script loads it
   explicitly (it is autoloaded for the platform device); dmesg shows
