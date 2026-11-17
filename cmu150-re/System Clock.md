@@ -35,14 +35,9 @@ How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[CMU150]].
 - **Setting the clock while SM starts services breaks the boot.** An SM `process` service
   `/sbin/hwclock -s -u` placed before `stage_1` in `sm.conf`/`sm_WCP.conf` (one-shot,
   `exit_allowed="yes"`, `reset_board="no"`) left the unit without SM (no SSH, no HMI) on
-  every boot, before the 90 s mark, until the configs were restored to stock. No log of the
-  failed boots survives (`/var/log/running_log` is tmpfs; its `log_000N.tar.gz` are size
-  rotations of the current boot only). Likely mechanism: `/jci/sm/sm` waits with
-  `pthread_cond_timedwait` and arms `timer_create`/`timer_settime` timeouts, and has no
-  `pthread_condattr_setclock`, so its waits run on `CLOCK_REALTIME`. A forward jump of
-  ~56 years expires every pending start/connect/ping timeout at once. The runtime jump
-  above (all services already up) did not hit this. The clock must be set either before
-  `/jci/sm/sm` starts or once all SM stages have finished starting.
+  every boot, before the 90 s mark, until the configs were restored to stock. The cause is
+  the BLM_TIME service, not SM's own timeouts (see "BLM_TIME cannot start on a real clock"
+  below). The runtime jump above (BLM_TIME already initialised) did not hit this.
 - **Setting the clock once SM has finished starting works at boot.** The same SM `process`
   service before `stage_1`, but running a shell script that waits for
   `SM_SERVER_CMD_RUNNING` in `/tmp/smevents.txt` with no service still starting (plus a
@@ -50,6 +45,79 @@ How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[CMU150]].
   boot completed normally: the service logs `SM_SVC_CMD_STARTED` at ~8.2 s (SM does not wait
   for the script), `sm` and `opera` kept their PIDs over the following minute, and no
   service was left starting. HMI time services follow the jump on their next 1-minute tick.
+- **Setting the clock before SM starts also breaks the boot.** `hwclock -s -u` run
+  synchronously at the end of `start_normal_mode.sh` (after `/dev/rtc0` exists, before
+  `autostart` starts `/jci/sm/sm`) set the clock at 7.9 s uptime. That boot reset itself at
+  about 75 s. The cause is the same as above.
+- **BLM_TIME cannot start on a real clock.** `/jci/time/svcjciblmtime.so`,
+  `BLM_TIME_SemTimedWait` (`blm_time_common.c`), computes its deadline as
+  `clock_gettime(CLOCK_MONOTONIC) + timeout` and passes it to `sem_timedwait`, which
+  measures against `CLOCK_REALTIME`. With the clock at 1970 the two clocks are nearly equal
+  and the wait works. With a real clock the deadline lies decades in the past, and every
+  wait fails at once with `ETIMEDOUT`.
+  - The waits go through `BLM_TIME_wait_timedsync`. Its callers are
+    `BLM_TIME2CPP_TIME_Init`, `blm_time_getCppDatetime`, `BLM_TIME2CPP_TIME_SetClock`,
+    `…SetTimezone`, `…SetDaylightSaving`, `…SetDatetimeComponents`,
+    `CLOCK_SETTINGS_Initialize`, `CLOCK_SETTINGS_SetTimezone` and `CLOCK_SETTINGS_SetDST`.
+  - At start-up `BLM_TIME2CPP_TIME_Init` fails. The log shows
+    `timeout of timedwait occurred` → `timeout in connecting to CPP_Time occurred` →
+    `Error in Initializing BLM_TIME`.
+  - The service's `[SM]SvcStateChH` thread then dies with `SIGSEGV` on the error path.
+  - SM restarts the service about every 10 s. After six crashes, `sm_health` runs
+    `log-and-data-save.sh` and the board resets.
+  - Evidence survives the reboot: cores in `/data_persist/log/dumps/`
+    (`coreNNN-[SM]SvcStateChH-SIGSEGV(11)-<pid>-<epoch>-74.00.324A.core.bz2`) and the
+    running log of the failed boot in `/data_persist/log/saved_logs/logsNNN_coreNNN_*.tar.bz2`.
+  - Consequence: the clock may only be set **after** BLM_TIME has initialised. Once it is
+    set, every later BLM_TIME timed wait (clock, timezone or DST change, GPS time sync) also
+    times out at once. A restart of the BLM_TIME service after the jump would repeat the
+    crash loop.
+  - Observed after a post-SM jump: changing the timezone and the time in Settings → Clock
+    is **not applied**. For each change, `blm_time_getCppDatetime` times out three times,
+    then the log shows `Logic thread - max number of retry reached - operation will not be
+    performed`. The RTC is left unchanged. BLM_TIME logs `service did NOT reset Logic
+    Thread heart-beat` during the retries, but nothing crashes: no core, and SM restarts
+    nothing. GPS time sync takes the same path, so it is expected to fail the same way
+    (not observed: no GPS fix on the bench).
+- **Other stock waits with the same clock mix-up.** A decompile of every JCI/vendor binary on
+  the rootfs that calls an absolute-deadline wait (117 binaries) found three more places that
+  take the deadline from `CLOCK_MONOTONIC` and pass it to a call that measures against
+  `CLOCK_REALTIME` (in glibc 2.11 `sem_timedwait`, `pthread_mutex_timedlock`,
+  `pthread_timedjoin_np` and `pthread_rwlock_timed*` have no clock choice):
+  - `/jci/lib/libbttr.so` `bttr_prot_detach`: `sem_timedwait`, monotonic + 1 s.
+  - `/jci/pb/svcjcipb.so` (`jciPB`) `pb_joinPbApplThread`: `pthread_timedjoin_np`.
+  - `/jci/sxms/svcjcisxms.so` (`jciSXMS`) `OS_eSemTake`: `pthread_mutex_timedlock` (its
+    `pthread_cond_timedwait` uses a `CLOCK_MONOTONIC` condvar and is correct).
+  On a real clock each of these returns `ETIMEDOUT` at once instead of waiting. Everything
+  else is consistent: realtime deadlines into realtime waits, monotonic deadlines into
+  condvars created with `pthread_condattr_setclock(CLOCK_MONOTONIC)`, `TIMER_ABSTIME`
+  timerfds on `CLOCK_MONOTONIC`, and relative `timer_settime`. No wait was found that takes a
+  realtime deadline into a monotonic condvar (which would hang on a real clock).
+- **The mix-up can be corrected without touching the binaries.** A preloaded library that
+  defines the three calls, and moves a deadline earlier than 2000 onto the realtime clock
+  (`deadline + realtime_now − monotonic_now`) when the realtime clock is past 2000, makes the
+  pattern wait the intended time. Tested under `qemu-arm` with the stock glibc 2.11.1 on a
+  real clock: monotonic-deadline waits went from 0 ms to the full 1000 ms; realtime-deadline
+  waits are unchanged; with the clock at 1970 the library changes nothing. The library must
+  export only those symbols: a toolchain runtime linked in (e.g. compiler-rt's weak
+  `memcpy`/`memset`) would otherwise interpose libc in every process.
+  - On the unit (library listed in `/etc/ld.so.preload`, clock set after SM start-up): the
+    boot completes normally and BLM_TIME, PB and SXMS map the library. A timezone change
+    in Settings → Clock is applied: BLM_TIME logs `blm_time_event (4-TZ chg …)`,
+    `TIME_Client_SetDatetimeComposite … time is sync'd`, then broadcasts `ClockChanged`.
+    It logs no `timeout of timedwait` and no `max number of retry reached`.
+  - With the library preloaded, setting the clock **before SM starts** works:
+    `hwclock -s -u` at the end of `start_normal_mode.sh` set the clock at 7.96 s uptime; SM
+    reached `SM_SERVER_CMD_RUNNING` at 59.5 s, BLM_TIME initialised and exchanged time with
+    CPP_TIME, `sm`/`opera`/BLM_TIME/PB/SXMS kept their PIDs from 150 s to 250 s, no new core
+    in `/data_persist/log/dumps/`, no timed-wait errors. The same hook without the library
+    reset the board at about 75 s.
+  - A manual time change in Settings → Clock is applied the same way: each hour step logs
+    `blm_time_event (3-TS chg …)` and `BLM_TIME2CPP_TIME_SetClock Setting clock to <UTC>`,
+    and `/sys/class/rtc/rtc0/since_epoch` follows. The Linux system clock (`date`) is not
+    changed by it; it only picks the new RTC time up at the next boot's RTC-to-system copy.
+  - GPS time sync also works: switching it on logs `blm_time_getLocation_cb … Setting UTC to
+    …` and `blm_time_event (7-new TIME …)`; the RTC then matched real UTC within 1 s.
 - **The RTC is available before SM.** `/dev/rtc0` is the i.MX6 SNVS RTC, driver module
   `rtc_snvs` (`/lib/modules/3.0.35/kernel/drivers/rtc/rtc-snvs.ko`). No boot script loads it
   explicitly (it is autoloaded for the platform device); dmesg shows

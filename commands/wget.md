@@ -27,6 +27,8 @@ Retrieve files via HTTP or FTP
 - The unit reaches hosts on its LAN over plain HTTP: `wget -q -O - http://<host>:<port>/<file>`
   returns the file (outbound TCP is not filtered on the unit side).
 - The `curl` on the unit is built without HTTPS: `curl: (1) Protocol https not supported or disabled in libcurl`.
+  `/usr/lib/libcurl.so.4.2.0` is libcurl 7.23.1 linked only against `libc`, `librt` and `libz`: no
+  TLS backend (no `libssl`/`libcrypto`), so no flag enables HTTPS. Its compiled-in CA path is unused.
 - The system clock is 1970 after every boot ([[System Clock]]), so TLS certificate validity checks
   against it fail regardless of transport.
 
