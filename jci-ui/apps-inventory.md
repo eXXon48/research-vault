@@ -66,3 +66,13 @@ in the list fall back to `apps/<uiaId>/js/` for dicts when `hasLangSupport`.
 domain menus (Entertainment/Applications/Communication/VehicleStatusMonitor),
 built from data lists in `systemApp.js`. The lists live on the rootfs; scripts loaded
 through the `/data` injection hook can patch them at runtime.
+
+## Wi-Fi settings path (user-facing)
+
+Home → **Settings** → **Devices** tab → **Wi-Fi** opens the `netmgmt` app (Wi-Fi on/off, network
+list, "Enter Password", "Saved Networks"). Sources (stock rootfs):
+- `apps/syssettings/js/syssettingsApp.js`: `_DevicesTabCtxtDataList` = Bluetooth, Apple CarPlay,
+  Android Auto, `SelectNetworkManagement`; the tab's `labelId` is `common.DevicesTab`.
+- `resources/js/syssettings/syssettingsAppDict_en_US.js`: `"NetworkManagement" : "Wi-Fi"`;
+  common dict: `"DevicesTab" : "Devices"`.
+- `resources/js/netmgmt/netmgmtAppDict_en_US.js`: `"NetworkConnection" : "Wi-Fi"`, `"EnterPassword"`.
