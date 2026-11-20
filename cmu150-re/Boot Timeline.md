@@ -118,6 +118,30 @@ The Wi-Fi/CarPlay chain in that boot, each step waiting on the one before:
 window, `irsstitcher_server` (37.19 → 37.98), `blm_ira_stitcher` (38.00 → 39.92) and
 `blm_ira_pandora` (38.03 → 40.21) start on core 0 alongside `blm_ira_aha`.
 
+## Five-boot baseline (legacy board, `sm.conf`)
+Five consecutive SafeReboot (warm) boots, each left up for more than 150 s, `/tmp/smevents.txt`
+copied after each. Same unit as the second capture (third-party packages installed). Seconds since
+kernel start; spread = max − min.
+
+| Milestone | Median | Min – max |
+|---|---|---|
+| SM `STARTING` | 9.07 | 8.95 – 9.73 |
+| `stage_2` | 12.59 | 12.48 – 13.29 |
+| `Opera` started | 14.67 | 14.40 – 15.35 |
+| `jciMMUI` start → started | 20.07 → 24.24 | 24.09 – 25.06 |
+| `stage_3` (HMI displayed) | 24.26 | 24.10 – 25.08 |
+| `start_network` started | 32.87 | 29.89 – 33.82 |
+| `bds` started | 33.17 | 32.30 – 34.21 |
+| `stage_ir` | 35.96 | 35.11 – 37.30 |
+| `blm_ira_aha` start → started | 36.17 → 39.46 | 38.37 – 40.32 |
+| `stage_wifi` | 39.49 | 38.40 – 40.36 |
+| `jciCARPLAY` start → started | 40.06 → 46.24 | 45.27 – 47.31 |
+| `stage_vr` started | 51.44 | 50.46 – 52.56 |
+| SM `RUNNING` | 58.52 | 57.90 – 59.82 |
+
+Spread is under 1 s up to `stage_3` and about 2 s after it (`start_network` up to 3.9 s). A
+single lever has to move a milestone by more than that spread to show in five boots.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
