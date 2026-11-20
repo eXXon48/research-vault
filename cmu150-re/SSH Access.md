@@ -15,6 +15,19 @@ Part of [[CMU150]]. See also [[config-mfg Keys Partition]].
 - `PasswordAuthentication no`  ← blocks password login by default
 - `AuthorizedKeysFile /config-mfg/authorized_keys`
 
+`sshd` is started once, with no retry, by `/jci/scripts/start_network.sh` (SM service
+`start_network`, `retry_count="0"`), about 25 s into boot. Port 36000 lies **inside the
+ephemeral port range** (`/proc/sys/net/ipv4/ip_local_port_range` = `32768 61000`;
+`ip_local_reserved_ports` is empty). If a local TCP client holds 36000 as its source port at that
+moment, sshd fails and does not come back until the next boot. In the log the failure looks like this:
+`sshd[…] error: Bind to port 36000 on 0.0.0.0 failed: Address already in use.` →
+`fatal: Cannot bind any address.` (seen on 2 of 4 boots on 2026-11-20, at 16:19 and 18:10; the unit
+then answers "connection refused" on 36000). Which process held the port is not established.
+Ports below 32768 (e.g. 22) are outside the ephemeral range and cannot be taken this way. Nothing in
+the stock rootfs listens on or references port 22 (only a commented `#   Port 22` in
+`/etc/ssh/ssh_config`, the client config). `jci-fw.sh` has no rule for 22, so with policy
+`INPUT DROP` a sshd on 22 also needs an `ACCEPT` rule for `--dport 22`. The error survives the boot in `/data_persist/log/error_logs/log`.
+
 Account facts:
 - `/etc/passwd` is a **symlink → `/config-mfg/passwd`** (read-only).
 - There is **no `/etc/shadow`** — the password hash lives in field 2 of

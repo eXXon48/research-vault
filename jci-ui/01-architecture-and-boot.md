@@ -157,3 +157,52 @@ So the three GUI→native milestones, in order:
 - A stuck load trips `_stateTimeout()` → `_showFatalErrorWink` / `_restartCMU`.
   A WebSocket close after a good connection also triggers `_restartCMU` (hard
   GUI restart). Injected code must therefore never block the load chain.
+
+## Page reload reboots the unit — never reload the HMI page
+
+`location.reload()` (or any navigation of the top page) in the running HMI **reboots the whole
+unit** about 55–60 s later. Bench-confirmed 2026-11-16, twice:
+
+- bare `location.reload()` at uptime 7950 s, nothing else running: last answer at 8003 s, then the
+  board reset (new boot, uptime 73 s at the next check);
+- the same ~1 min delay the first time, after a reload with a page-side WebSocket client open.
+
+No core dump, no reset reason in the next boot's log (`running_log` is tmpfs). The ~60 s delay
+matches the SM watchdog (`sm.conf`: `watchdog_enable="true" reports_timeout="60000"`); `Opera` is
+`reset_board="yes" retry_count="0"`. Likely chain: the reload closes the GUI sockets (MMUI 2700,
+AppSDK 2800, DBAPI 2766) → the native side loses the GUI → the GUI stops reporting → SM resets the
+board. Exact trigger not pinned.
+
+There is no safe HMI-only restart:
+- page reload → board reset ~1 min later (above);
+- `smctl -r -n Opera` restarts Opera without a board reset, but it comes back with **no display
+  output** (black screen; the IVI/Wayland surface is not re-bound).
+
+So code injected into the HMI page (and any tooling that evals into it) must never reload or
+navigate the top page. To pick up a changed script, re-append it with a cache-buster, or SafeReboot.
+
+## A JS exception inside a transition reboots the unit
+
+An uncaught exception in the template-transition path (`Transitions.prototype.*`) leaves the
+framework out of IDLE. About 8 s later the GUI framework gives up and the board resets.
+Bench log 2026-11-20 (`saved_logs` archive of the crashed boot), all times relative to the exception:
+
+| t | Log line (shortened) |
+|---|---|
+| 0 | `GUI_FRAMEWORK Error … Uncaught exception: TypeError …` (thrown right after `Transitions.doTemplateTransition called`) |
+| +8.0 s | `State Timeout Error: Framework never returned to IDLE state from: templateChange` |
+| +8.0 s | `Framework has timed out while not in debug mode. Attempting to restart GUI.` |
+| +9.0 s | `FATAL ERROR - RESTARTING CMU : State Timeout` → `GUI_MANAGER Critical (guiManager.c vp_forceExit) CALLING TERMINATE !` |
+| +9.0 s | `OPERA_MAIN` exits through `main` (`LOOOP`/`DBUS`/`CLOSE`/`terminate`/`shutdown`, no signal, no core) |
+| +10.2 s | `SM … service "Opera" configured as reset_board="yes" exited. Stop pinging watchdog` / `Expect a reboot in up to 5 seconds.` |
+
+- No core dump is written (Opera exits normally). The reason survives the reboot only in
+  `/data_persist/log/saved_logs/logsNNN_coreNNN_<ts>-<ver>.tar.bz2`: it holds the
+  `running_log` archives of the last ~12 min plus the final `log`.
+- In that boot the stock `focusStack` handler also threw (`'this._isStack' is not a function`,
+  `Websockets.js:297`) for the same context change. That error alone did not stop the transition
+  in earlier boots.
+- Consequence for injected code: any wrapper around `Transitions` methods (or any code on the
+  transition path) must never throw. A top-level `var` in code evaluated into the page is a
+  global, so another script can overwrite a captured original (`var b = P.method` → later
+  `b.apply` fails). Keep captured originals in a closure.
