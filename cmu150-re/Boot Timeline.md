@@ -142,6 +142,35 @@ kernel start; spread = max − min.
 Spread is under 1 s up to `stage_3` and about 2 s after it (`start_network` up to 3.9 s). A
 single lever has to move a milestone by more than that spread to show in five boots.
 
+## What the screen shows (one boot, GUI context messages)
+MMUI sends each screen change to the GUI as `{"msgType":"ctxtChg","uiaId":…,"ctxtId":…}` (logged by
+`GUICORE … GUIIFM_SendDataToGUI` in `/var/log/running_log/log`). Uptime from the log's wall clock
+(offset from `date` + `/proc/uptime` read together):
+
+| t (s) | Screen |
+|---|---|
+| 24.89 | `system` / `IntroAnimation` (boot screen) |
+| 30.37 | `system` / `Disclaimer` |
+| 41.86 | `system` / `HomeScreen` (after `UIA_SYSTEM_Event_Timeout` from the GUI) |
+
+`systemApp.js` (`_disclaimerTime`) starts a 3500 ms timer when the Disclaimer shows and sends
+`Timeout` to MMUI when it fires; the timer pauses while another screen covers the Disclaimer. In
+this boot the `Timeout` reached MMUI 11.5 s after the Disclaimer context was sent, not 3.5 s.
+What held it is not established. `Global.Yes` on the Disclaimer sends the same exit early.
+`running_log` rotates about every 1.5 min (ten `log_NNNN.tar.gz` kept), so boot lines survive only
+for roughly the first 15 minutes of uptime.
+
+## Fixed waits in boot-path scripts
+From the stock rootfs (`usr/bin/autostart`, scripts named in `sm.conf`):
+- `usr/bin/autostart:78` — `sleep 1` before `get_board_type.sh`, i.e. before SM starts (normal mode).
+- `jci/scripts/stage_vr.sh:2` — `sleep "$1"` (`args="5s"`).
+- `jci/scripts/jci-wifiap.sh` — `sleep 2` at lines 62, 76, 92, 105; `sleep 1` at 185.
+- `jci/scripts/get_board_type.sh` — `sleep 1` only on a failed GPIO read (retry loop).
+- `usr/sbin/emmc_mount.sh:10` — `waitfor /sys/block/${MMC_DEV}/dev 30000` (bounded poll, not a fixed wait).
+- `jci/scripts/wait_core_finished.sh` — 1 s poll loop on `/var/lock/*.core`, up to 300 s.
+- Timers inside binaries are not visible here, e.g. BCA logs `Incoming Connection Wait timer started
+  with timeout 5000 milli sec` twice around 35.9–36.0 s.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
