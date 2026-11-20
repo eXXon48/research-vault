@@ -205,7 +205,11 @@ born and gone between two samples are not seen.
   (cpu1 rises to 56–86 %); from 26 s to 68 s cpu0 is still saturated. Milestones vs the
   unpinned boot: `stage_3` 24.63 (25.24), `bds` 33.26 (33.92), `devicemanager` 40.42 (42.51),
   `jciAAPA` 44.34 (45.43), `jciCARPLAY` 46.86 (47.31), `RUNNING` 59.58 (59.72). The gains are
-  inside the boot-to-boot spread (<1 s before `stage_3`, ~2 s after); not yet repeated.
+  inside the boot-to-boot spread (<1 s before `stage_3`, ~2 s after). Three pinned boots
+  (sampler running): `stage_3` 24.63 / 24.51 / 25.60, `bds` 33.26 / 33.36 / 33.80, `RUNNING`
+  59.58 / 59.40 / 59.08 — no measurable gain over the unpinned boots without the sampler
+  (`stage_3` 24.09–25.08, `RUNNING` 57.90–59.82). Relieving cpu0 before `stage_3` does not
+  shorten the boot; after `stage_3` cpu0 is saturated by SM services.
 
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
