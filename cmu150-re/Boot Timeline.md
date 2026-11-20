@@ -171,6 +171,35 @@ From the stock rootfs (`usr/bin/autostart`, scripts named in `sm.conf`):
 - Timers inside binaries are not visible here, e.g. BCA logs `Incoming Connection Wait timer started
   with timeout 5000 milli sec` twice around 35.9–36.0 s.
 
+## Per-process CPU and I/O during boot (one boot, `/proc` sampled)
+
+Method: a busybox-sh loop started from the top of `start_normal_mode.sh` (6.6 s), pinned to
+cpu1, every ~2.4 s appending `/proc/stat` cpu lines, `/proc/diskstats` (`ffx01`, `mmcblk0`) and
+each `/proc/<pid>/{stat,statm,io}`. One sample costs ~0.4 s CPU (≈190 processes); the sampler
+itself used 5.9 s of cpu1 up to 59 s and delayed `stage_3` / `RUNNING` by ~1 s. Processes
+born and gone between two samples are not seen.
+
+- **cpu0 is saturated from 8 s to 68 s** (88–100 % busy, iowait ≤ 13 %); cpu1 runs 20–60 %
+  (of which ~20 % is the sampler), except 28–40 s when both cores are at 95–100 %. After
+  ~70 s cpu0 settles at 25–40 %, cpu1 at ~20 %.
+- Rootfs reads (`ffx01`, NOR) run at 2–6 MB/s from 8 s to ~58 s; `mmcblk0` reads burst
+  at 56–66 s (up to ~5.8 MB/s).
+- **`ffxread01`** (kernel thread serving `ffx01` reads) is the largest consumer: 5.3 cpu-s up to
+  `stage_3` (4.9 s of it on cpu0), 10.5 cpu-s up to 59 s. Its affinity is `0-1`
+  (`Cpus_allowed_list`, not `PF_THREAD_BOUND`), but it is scheduled almost only on cpu0.
+- cpu-s used from 6.6 s to 25.4 s (`stage_3`), excluding the sampler: `ffxread01` 5.34,
+  `opera` 1.87 (cpu1), `jciBLMSetting` 1.45 (cpu1), `jciMMUI` 1.16, `syslog-ng` 0.94,
+  `jciVBS` 0.94, SM main thread 0.63 (cpu1), `vim_app` 0.61, `settings` 0.57,
+  `splashplayer` 0.52 (cpu1), `dbus-daemon` 0.49 + 0.35, `wayland-viv-compositor` 0.46 (cpu1),
+  `jciUSBMGR` 0.42.
+- cpu-s from 6.6 s to 58.8 s (`RUNNING` ≈ 59.7 s on this boot): `ffxread01` 10.45, `opera` 6.53,
+  `jciBLMSetting` 3.50, `syslog-ng` 2.55, `jciVBS` 2.49, `jciMMUI` 2.43, `vim_app` 2.18,
+  SM 1.64, `dbus-daemon` 1.52 + 1.00, `splashplayer` 1.45, `settings` 1.44, `wayland-viv` 1.21,
+  `natp` 1.19, `jciCARPLAY` 1.18, `LVDS_MAIN` 0.92, two `lua` 0.91 + 0.84, `process-log` 0.79,
+  `bds` 0.71. Of 71.5 cpu-s seen, 47.5 ran mostly on cpu0, 23.9 mostly on cpu1.
+- Largest RSS at 152 s: `opera` 54 MB, `natp` 45 MB, `jciMMUI` 19 MB, `jciVBS` 12 MB,
+  `jciSXMS` 10 MB, `bds` 10 MB.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
