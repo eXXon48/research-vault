@@ -200,6 +200,13 @@ born and gone between two samples are not seen.
 - Largest RSS at 152 s: `opera` 54 MB, `natp` 45 MB, `jciMMUI` 19 MB, `jciVBS` 12 MB,
   `jciSXMS` 10 MB, `bds` 10 MB.
 
+- Same sampler with `taskset -p 2 <ffxread01>` at 5.9 s (one boot): `ffxread01` runs on
+  cpu1 only (4.68 cpu-s up to `stage_3`), cpu0 busy drops to 31–78 % between 8 s and 24 s
+  (cpu1 rises to 56–86 %); from 26 s to 68 s cpu0 is still saturated. Milestones vs the
+  unpinned boot: `stage_3` 24.63 (25.24), `bds` 33.26 (33.92), `devicemanager` 40.42 (42.51),
+  `jciAAPA` 44.34 (45.43), `jciCARPLAY` 46.86 (47.31), `RUNNING` 59.58 (59.72). The gains are
+  inside the boot-to-boot spread (<1 s before `stage_3`, ~2 s after); not yet repeated.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
