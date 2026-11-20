@@ -211,6 +211,25 @@ born and gone between two samples are not seen.
   (`stage_3` 24.09–25.08, `RUNNING` 57.90–59.82). Relieving cpu0 before `stage_3` does not
   shorten the boot; after `stage_3` cpu0 is saturated by SM services.
 
+- Same sampler moving, on first sight, every thread of `natp`, `L_jciVBS`, `L_jciCARPLAY`,
+  `L_jciMMUI`, `L_settings`, `L_jciblmVdt`, `L_jciVwm`, `vim_app`, `syslog-ng` and
+  `dbus-daemon` to cpu1 (`taskset -p 2`, 2.4 s scan; three boots):
+
+  | boot | `stage_3` | `bds` | `devicemanager` | `jciAAPA` | `jciCARPLAY` | `RUNNING` |
+  |---|---|---|---|---|---|---|
+  | 1 | 24.65 | 31.52 | 40.59 | 43.31 | 46.07 | 56.96 |
+  | 2 | 24.50 | 31.36 | 41.80 | 44.19 | 46.46 | 57.58 |
+  | 3 | 23.74 | 30.30 | 39.77 | 42.49 | 45.43 | 56.47 |
+
+  Against the six boots without the sampler, `bds` starts 1–3 s earlier (30.3–31.5 vs
+  32.3–34.2) and `RUNNING` ~1.5 s earlier (56.5–57.6 vs 57.9–59.8), with the sampler's own
+  ~1 s cost included. `stage_3`, `devicemanager` and `jciAAPA` do not move. cpu1 becomes the
+  saturated core at 27–48 s (92–100 %) and, with `natp` on it, at 57–66 s while cpu0 drops
+  to 8–25 %.
+- `dbus-daemon` (both instances) and the main thread of `vim_app` are back on cpu0 after
+  being moved at ~5.8 s (their other threads stay on cpu1); no stock script pins them with
+  `taskset`, so the affinity is reset elsewhere (not identified).
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
