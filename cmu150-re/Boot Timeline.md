@@ -96,6 +96,11 @@ dependency), an extra `emmc_mount` dependency, and `args=""` instead of `args="U
 ## CPU
 - Two Cortex-A9 cores, both online. cpufreq governor `userspace`, both cores at `996000` kHz;
   available `996000 792000 396000`.
+- 996 MHz is the fused limit: `/sys/fsl_otp/HW_OCOTP_CFG3` = `0x620302`, SPEED_GRADING bits
+  [17:16] = `0b10` (996 MHz grade; `0b11` would be 1.2 GHz). `/proc/cpuinfo` revision `63000`
+  (i.MX6Q/D die). The kernel is built for two CPUs (`kernel_max` 1, `possible` `0-1`), so a die
+  with more cores would still run two. Thermal zone `anatoptz` (cpufreq as cooling device),
+  trip points 80 / 90 / 105 °C; ~31 °C read on an idle bench unit.
 - SM itself is pinned to core 1 (`taskset 0x02`), but the `<services>` default in `sm.conf` is
   `affinity_mask="0x01"`, so services run on core 0 unless they set `0x02`. Stock `0x02`
   services: `jciBLMSettings`, `devices`, `jciNativegui`, `jciBUCPSA`, `jciVideoctrl`, the splash
