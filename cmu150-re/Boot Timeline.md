@@ -230,6 +230,19 @@ born and gone between two samples are not seen.
   being moved at ~5.8 s (their other threads stay on cpu1); no stock script pins them with
   `taskset`, so the affinity is reset elsewhere (not identified).
 
+- The same move without any profiling (a scan of `/proc/*/stat` every 2 s; three boots):
+
+  | boot | `stage_3` | `bds` | `devicemanager` | `jciAAPA` | `jciCARPLAY` | `RUNNING` |
+  |---|---|---|---|---|---|---|
+  | 1 | 23.60 | 30.22 | 40.04 | 42.72 | 44.58 | 55.56 |
+  | 2 | 24.51 | 31.85 | 42.25 | 45.26 | 46.28 | 57.09 |
+  | 3 | 23.75 | 30.39 | 40.74 | 43.65 | 44.93 | 55.70 |
+
+  Against the six unmoved boots (medians `bds` 33.16, `jciCARPLAY` 46.27, `RUNNING` 58.73):
+  `bds` ~2.8 s earlier, `jciCARPLAY` ~1.3 s, `RUNNING` ~3 s; `stage_3`, `devicemanager` and
+  `jciAAPA` within the spread. The AA chain from `bds` to `jciAAPA` is not CPU-bound: it
+  absorbs the earlier `bds` start.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
