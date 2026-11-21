@@ -250,6 +250,55 @@ born and gone between two samples are not seen.
   `jciAAPA` within the spread. The AA chain from `bds` to `jciAAPA` is not CPU-bound: it
   absorbs the earlier `bds` start.
 
+## Critical chain to `RUNNING` (one boot, `sm.conf` + SM events)
+For each service, the gate is the dependency that finished starting last. Followed back from the
+last service to start (`jciMSG`), the chain is (seconds, start → started):
+
+| Service | Start → started | Duration |
+|---|---|---|
+| `stage_1` | 8.97 → 9.01 | 0.04 |
+| `settings` | 9.18 → 10.28 | 1.10 |
+| `jciVBS` | 10.31 → 15.49 | 5.18 |
+| `xsesvc2dbus_service` | 15.49 → 15.61 | 0.11 |
+| `audio_control` | 15.75 → 18.03 | 2.27 |
+| `audio_manager` | 18.03 → 18.45 | 0.42 |
+| `jciRadio` | 18.45 → 19.76 | 1.31 |
+| `jciMMUI` | 19.86 → 24.08 | 4.21 |
+| `stage_3` | 24.08 → 24.09 | 0.01 |
+| `bds` | 24.12 → 32.59 | 8.47 |
+| `jciPA` | 32.61 → 33.87 | 1.26 |
+| `jciBCA` | 33.90 → 35.52 | 1.62 |
+| `mfid` | 35.55 → 35.64 | 0.09 |
+| `devicemanager` | 35.69 → 39.98 | 4.29 |
+| `jciCARPLAY` | 40.01 → 46.30 | 6.29 |
+| `stage_vr` | 46.31 → 51.48 | 5.17 (`sleep 5s`) |
+| `natp` | 51.50 → 51.51 | 0.00 |
+| `jciTTSPlayer` | 51.53 → 55.05 | 3.53 |
+| `jcibteca` | 55.06 → 57.46 | 2.40 |
+| `jciPB` | 57.48 → 58.91 | 1.44 |
+| `jciMSG` | 58.93 → 59.75 | 0.82 |
+
+- `stage_vr` is the only pure wait on the chain; its only dependent is `natp`. Its 5 s are added
+  in full to everything after it.
+- `sm.conf` default is `affinity_mask="0x01"` (cpu0); 18 services set `0x02`.
+- Services with no dependents (leaves, removable from the graph without blocking anything):
+  `jcidvd`, `jcitv`, `jciDAB`, `jciXMMGR`, `blm_ira_pandora`, `blm_ira_stitcher`. `jciSXMS` has
+  only XM services as dependents. `jciCD` is not a leaf: `jciMMUI` depends on it.
+
+## Boot log volume (one boot, `running_log`)
+- 11 585 lines (1.67 MB) up to ~60 s: Info 10 757 (93 %), Error 368, Warn 367, Note 43,
+  Debug 29, Critical 12.
+- Top zones: `VWM` 1335, `MMUI_SYSTEM` 680, `CPP_TIME` 580, `BLM_SETTINGS` 560,
+  `MMUI_COMMON` 497, `BCA` 414, `VBS_BUS_VWM` 373, `BLM_CARPLAY` 340.
+- The application-side level is set in `/config/common/log/settings.txt` (rootfs):
+  `COMMON_LOG_FORMAT=SYSLOGNGEXT`, `COMMON_LOG_STRIP=True`, `COMMON_LOG_LEVEL=Info`.
+  `jci-log.sh level <level>` writes that file; `jci-log.sh console disable` and
+  `jci-log.sh filter` also exist.
+- The live syslog-ng config is `/data/log/syslog-ng.conf` (writable `/data`). Destinations:
+  `d_ram_log` (process-log, 512), `d_error_log`, and `d_console` = `/dev/console` (ttymxc1 UART,
+  115200 baud). Every line is also written to the UART; ~7.7 MB transmitted by uptime 1199 s.
+  The UART has no flow control, so excess lines are dropped rather than blocking.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
