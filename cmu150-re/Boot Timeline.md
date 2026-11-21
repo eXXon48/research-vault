@@ -299,6 +299,26 @@ last service to start (`jciMSG`), the chain is (seconds, start → started):
   115200 baud). Every line is also written to the UART; ~7.7 MB transmitted by uptime 1199 s.
   The UART has no flow control, so excess lines are dropped rather than blocking.
 
+## Cutting the `stage_vr` wait (three boots, with the cpu1 move)
+The `sleep 5s` child of `stage_vr.sh` was killed as soon as it appeared (`pgrep -f stage_vr.sh`,
+`pkill -P`); the script then creates `/var/run/stage_vr_ready` itself. No configuration changed.
+
+| boot | `jciCARPLAY` | `stage_vr` | `natp` | `jciTTSPlayer` start → started | `RUNNING` | `jciCARPLAY` → `RUNNING` |
+|---|---|---|---|---|---|---|
+| wait cut 1 | 46.38 | 47.19 | 47.23 | — | 54.72 | 8.3 |
+| wait cut 2 | 46.74 | 47.51 | 47.56 | 47.59 → 52.18 (4.6) | 54.35 | 7.6 |
+| wait cut 3 | 43.25 | 44.72 | 44.76 | 44.78 → 50.74 (6.0) | 53.45 | 10.2 |
+| move only | 43.33 | 48.55 | 48.58 | 48.60 → 52.09 (3.5) | 54.22 | 10.9 |
+
+- With the move only, `jciCARPLAY` → `RUNNING` is 10.8–10.9 s on all four boots; with the wait cut
+  it is 7.6–10.2 s.
+- `natp` reports started within 0.05 s, but `jciTTSPlayer` (depends on `natp`, `ping_timeout=30000`)
+  then takes 4.6–6.0 s instead of ~3.5 s: part of the removed wait reappears as `natp`
+  initialisation. Net effect on `RUNNING`: about 1.5 s (mean 54.2 s against 55.6 s), within the
+  boot-to-boot spread of the earlier chain (`devicemanager` 4–8 s).
+- No board reset, UI up on all three boots. `natp`, `jciTTSPlayer` and `jciVUI` carry
+  `reset_board="yes"`.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
