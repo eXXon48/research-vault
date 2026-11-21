@@ -164,6 +164,13 @@ MMUI sends each screen change to the GUI as `{"msgType":"ctxtChg","uiaId":…,"c
 `Timeout` to MMUI when it fires; the timer pauses while another screen covers the Disclaimer. In
 this boot the `Timeout` reached MMUI 11.5 s after the Disclaimer context was sent, not 3.5 s.
 What held it is not established. `Global.Yes` on the Disclaimer sends the same exit early.
+
+The Disclaimer's displayed callback (which sends `DisposeIntroVideo` and starts the timer) runs only
+once the GUI has finished initialising its apps: in five boots `DisposeIntroVideo` came 0.0–0.5 s
+after the `vehsettingsApp.js` "context/template not initialized" error line, 5.8–8.9 s after the
+Disclaimer context. `DisposeIntroVideo` is when NATGUICTRL switches from the native `Newlooplogo`
+surface to `JCI_OPERA_PRIMARY`, so the boot animation lasts until the GUI is ready. `Timeout` sent
+in the same callback (no 3500 ms timer) gives `HomeScreen` 0.2–0.9 s after `DisposeIntroVideo`.
 `running_log` rotates about every 1.5 min (ten `log_NNNN.tar.gz` kept), so boot lines survive only
 for roughly the first 15 minutes of uptime.
 
