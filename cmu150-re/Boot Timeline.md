@@ -319,6 +319,19 @@ The `sleep 5s` child of `stage_vr.sh` was killed as soon as it appeared (`pgrep 
 - No board reset, UI up on all three boots. `natp`, `jciTTSPlayer` and `jciVUI` carry
   `reset_board="yes"`.
 
+## Screens per boot vs. the cpu1 move
+`ctxtChg` times (uptime, s) from `running_log`, all boots of the series above:
+
+| boots | `IntroAnimation` | `Disclaimer` | `HomeScreen` |
+|---|---|---|---|
+| unmoved (5 boots: plain, sampler, `ffxread01` pinned) | 24.9–26.9 | 30.4–32.1 | 41.0–41.9 |
+| cpu0-heavy services moved to cpu1 (8 boots) | 23.9–25.6 | 29.6–31.1 | 46.0–53.4 |
+
+- The move that brings `RUNNING` ~3 s earlier delays `HomeScreen` by 4–12 s. `opera` already runs
+  on cpu1 (6.8 CPU-s there in the first 62 s); `jciMMUI`, `jciVwm`, `syslog-ng`, `natp` and others
+  moved next to it compete with it while the Disclaimer timer (3500 ms in `systemApp.js`) runs.
+- Unmoved, the Disclaimer still lasts 9.3–10.0 s against its 3.5 s timer.
+
 ## Reading
 - Kernel to SM start ≈ 9 s; SM start to HMI stage (`stage_3`) ≈ 15.6 s; SM start to SM
   `RUNNING` ≈ 49.5 s. The SM phase dominates; most of it is service start-up serialised behind
