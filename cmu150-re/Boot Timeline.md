@@ -174,6 +174,31 @@ in the same callback (no 3500 ms timer) gives `HomeScreen` 0.2–0.9 s after `Di
 `running_log` rotates about every 1.5 min (ten `log_NNNN.tar.gz` kept), so boot lines survive only
 for roughly the first 15 minutes of uptime.
 
+## What gates the Disclaimer context (3 boots: stock b10, two with GUI tweaks)
+- MMUI starts the SM service `tranlogo` on demand right before it sends `IntroAnimation`
+  (`UIA_SYSTEM_GetStartUpSettings` "tranlogo is started"). `tranlogo` is
+  `/usr/bin/splashplayer -q -p /var/run/tranlogo_ready_flag -t TRANLOGO_SURFACE -z 700 /jci/resources/TranLogo.ivf`
+  (`sm.conf`, `autorun="no"`, cpu1). `TranLogo.ivf` is 1 240 681 bytes.
+- `tranlogo` runs 4.4–4.8 s (start 25.46–26.76 → `Svc tranlogo stopped!` 30.07–31.54).
+  MMUI sends `ctxtChg Disclaimer` 0.6–1.9 s after that stop, in every boot.
+- So the boot animation, not the GUI, sets the earliest Disclaimer time. After the Disclaimer,
+  MMUI stops `quicktranlogo` (`LoopLogo.ivf`, looped), which is already stopped, and NATGUICTRL
+  keeps showing the `Newlooplogo` surface until the GUI takes over.
+- The IVF files are VP8, 800×480, with a 90 000 timebase. `TranLogo.ivf` has 120 frames,
+  `TranLogoEnd.ivf` 30, `LoopLogo.ivf` 54. `newLoopLogo.ivf` has 60 frames and a 30 fps header.
+  `splashplayer` plays at `-r <fps>` (default 30), so `TranLogo` lasts 120/30 = 4.0 s, plus
+  start-up. Other options: `-l` loop, `-q` quit at end, `-p` pid file, `-t` surface title,
+  `-x -y -w -h -z` window position, size and z-order, `-f` format (9 = VP8).
+- `TranLogo` is the Mazda logo turning into a pre-rendered picture of the Home menu: the last frames
+  are video, not the live GUI.
+
+## `natp`
+`/jci/natp/bin/natp -f /jci/natp/config/natp.cfg -s natp_config -k VerboseLevel=0` is the Nuance
+speech platform. Its `natp.cfg` channels are HostAgent, MonitorService, GDM, AudioMatrixService,
+AudioRecordingService, PrompterService, SAIP/SAOP/SAS, FileService and VoconService (Vocon ASR,
+TTS decoder). In `sm.conf` it depends on `emmc_mount` and `stage_vr`, and carries `reset_board="yes"`.
+`jciTTSPlayer` and the voice UI depend on it. It starts after HomeScreen (≈45–51 s).
+
 ## Fixed waits in boot-path scripts
 From the stock rootfs (`usr/bin/autostart`, scripts named in `sm.conf`):
 - `usr/bin/autostart:78` — `sleep 1` before `get_board_type.sh`, i.e. before SM starts (normal mode).
@@ -291,6 +316,12 @@ last service to start (`jciMSG`), the chain is (seconds, start → started):
 - Services with no dependents (leaves, removable from the graph without blocking anything):
   `jcidvd`, `jcitv`, `jciDAB`, `jciXMMGR`, `blm_ira_pandora`, `blm_ira_stitcher`. `jciSXMS` has
   only XM services as dependents. `jciCD` is not a leaf: `jciMMUI` depends on it.
+- Leaf in the SM graph does not mean free to drop. With `jcidvd` and `jcitv` set `autorun="no"`
+  (both SM files, on a unit with no DVD/TV hardware), the Home screen came 2–3 s **later**
+  (3 boots: 37.2 / 38.1 / 39.1 s, against 35.1–36.4 s with them on). SM start times of the other
+  services did not change. The delay sat inside GUI app init, between the Disclaimer context
+  and the end of init (`vehsettingsApp.js:7050` line). No DVD/TV error or dbus timeout appeared in
+  the log, so the waiting party is not identified.
 
 ## Boot log volume (one boot, `running_log`)
 - 11 585 lines (1.67 MB) up to ~60 s: Info 10 757 (93 %), Error 368, Warn 367, Note 43,
@@ -346,3 +377,78 @@ The `sleep 5s` child of `stage_vr.sh` was killed as soon as it appeared (`pgrep 
 - Candidate levers visible in the config (not measured individually): the `stage_vr` fixed
   sleep, the `blm_ira_aha` gate on Wi-Fi/VR, the `sleep 2` calls in `jci-wifiap.sh`, and
   services for absent hardware on the `jciMMUI` dependency list (`jciCD`, tuner services).
+
+## CPU by process during boot (fw 74.00.324A, measured)
+
+Cumulative utime+stime from `/proc/<pid>/stat`, read at the first SSH login (uptime 57–63 s), two
+boots. HomeScreen was at 32–33 s with GUI and SM tweaks. Across 2 cores, about 78% of the CPU was
+busy up to that point (`/proc/uptime`: idle 26–30 s of 59–64 s × 2).
+
+| process | CPU s | note |
+|---|---|---|
+| `ffxread01` | 12.1 | FlashFX (Datalight NAND) read kernel thread, all system time |
+| `opera` | 9.1–9.8 | HMI GUI |
+| `natp` | 2.9–5.7 | |
+| `L_jciBLMSetting` | 3.1–3.5 | |
+| `syslog-ng` + `process-log` | 3.5 | system log path |
+| `L_jciVBS`, `L_jciMMUI`, `vim_app`, `init` | 2.3–2.8 each | |
+
+- The system log carries about 8 300 lines (1.3 MB) in the first ~55 s; 91% of them are Info.
+  Busiest sources: BLM_SETTINGS, VWM, MMUI_SYSTEM, BLM_CARPLAY, CPP_TIME. After boot the rate
+  drops to about 5 KB/s, and syslog-ng + process-log then use about 1.7% of one core.
+- `running_log` rotates at 512 KB into `log_NNNN.tar.gz`.
+- The GUI's own `Log.js` output is not a boot cost: only 10–43 lines per boot pass its level gate.
+
+## Which boot logo plays: `/data/unexpectedshutdownflag`
+
+`/sbin/init_cmu` reads `/data/unexpectedshutdownflag` (one byte) before the Service Manager starts, and picks the loop logo from it:
+
+| flag | init log | loop logo | what is seen |
+|---|---|---|---|
+| `1` | `<I> Detected CMU reboot in previous cycle` | `splashplayer -l -t NEWLOOPLOGO_SURFACE -z 1700 -p /var/run/newlooplogo.pid /jci/resources/newLoopLogo.ivf` | logo + spinner until the Home screen; the `tranlogo` animation (z 700) and the Disclaimer still run but are covered |
+| other | — | `splashplayer -l -t LOOPLOGO_SURFACE -z 500 -p /var/run/looplogo.pid /jci/resources/LoopLogo.ivf` | loop logo, then the `tranlogo` animation and the Disclaimer on top |
+
+- Reader: `cb_looplogo` in `/sbin/init_cmu` (also `init_cmu_rr`) reads one byte; any byte other than `'0'` (or a missing file: no) selects the newlooplogo path. No other binary reads the file.
+- Writer: `SYSTEM_SMM_UnexpectedShutdown(int)` in `/jci/system/svcjciblmsystem.so` writes `%d` + `sync()`, only when the value differs from the file.
+- SMM state enum (`SystemStateMachine` name table): 0 `InvalidState`, 1 `SYSTEM_InitState`, 2 `SYSTEM_NormalState`, 3 `SYSTEM_IdleState`, 4 `SYSTEM_DelayState`, 5 `SYSTEM_StandbyState`, 6 `SYSTEM_PoweringDownState`, 7 `SYSTEM_TestState`, 8 `SYSTEM_VipReflashState`, 9 `SYSTEM_MAP_SleepState`, 10 `SYSTEM_MAP_ColdStartState`.
+- Writes, by caller:
+
+| caller | writes | when |
+|---|---|---|
+| `system_smm_PrepareForState`, target `NormalState` (2) | `1` | every boot, when the system reaches Normal |
+| `system_smm_PrepareForState`, target `StandbyState` (5) | `0` | orderly ACC off (display ACC-off or sleep, audio off) |
+| `DbusServerClientModule::genericReboot` (dbus `GenericReboot`) | `0` | after `SYSTEM_HSRM_StartBoardReset`/`StartShutdown` returns 100 |
+| `factoryReset`, `system_smm_VIPReflash_EventHandler`, `SYSTEM_SMM_EnterVIPReflashMode` | `0` | factory reset, VIP reflash |
+
+- `DbusServerClientModule::safeReboot` (dbus `SafeReboot`) never writes the flag: it calls `SetEmergency`, `SetDisplayOff`, `SetAudioOff`, `SYSTEM_HSRM_StartBoardReset(0,1,0)`. So `1` from Normal stays, and the next boot shows newlooplogo. A power cut (bench PSU off) also leaves `1`. Only an orderly ACC off (Standby) gives the LoopLogo path.
+- `GenericReboot` with `mode_flags` = 0 decodes to the same `StartBoardReset(0,1,0)` with display and audio off, plus the `0` write. Flag bits: `1` = keep display on (also passed to `StartBoardReset`), `2` = clears arg 2, `4` = shutdown instead of reset (refused unless bit 2 is set and bit 1 is clear), `8` = arg 3.
+- In the newlooplogo path `jciNativegui` re-shows the surface on idle (`NGC_CheckNewLooplogoAnimation`, `OnIdle: Showing Newlooplogo surface...`). MMUI stops it when the Home screen comes (`uiaSystem_Stop_NewLoopLogo`: `kill -TERM $(cat /var/run/newlooplogo.pid)`).
+- So on this path, a shorter `tranlogo` cannot be seen and only matters by when MMUI sends the Disclaimer.
+- Measured (stock, `GenericReboot int32:0`): log `read /data/unexpectedshutdownflag value is [0]`, LoopLogo path, Disclaimer context 33.20 s, `DisposeIntroVideo` 33.56 s, Home 37.06 s. The newlooplogo path on the same unit gave Home 37.2 s, so the flag changes only what is seen, not the timing.
+
+## Critical chain to Android Auto (two boots, `sm.conf` + SM events + running log)
+
+Seconds since kernel start. The phone was plugged in during the boot (b40, with GUI tweaks: Home 30.6 s). b43 (stock, no phone) has the same SM chain within 0.5 s.
+
+| step | b40 | b43 |
+|---|---|---|
+| `bds` start → started (`ready_flag /tmp/bds_ready_flag`) | 23.59 → 31.29 | — |
+| `jciPA` start → started (needs `bds`) | 31.31 → 32.30 | — |
+| `jciBCA` start → started (needs `bds`, `jciPA`) | 32.32 → 33.20 | 32.63 → 33.84 |
+| `mfid` (needs `jciUSBMGR`, `jciBCA`; exits after ~0.4 s) | 33.22 | 33.85 |
+| `devicemanager` start → started (needs `mfid`) | 33.36 → 37.90 | 33.88 → 38.05 |
+| `aap_service` (needs `devicemanager`) | 37.93 | 38.07 |
+| `jciAAPA` start → started (needs `devicemanager`, `aap_service`, …) | 37.94 → 40.14 | 38.08 → 41.45 |
+| USB manager `Started accessory mode - OK`, phone re-enumerates `18d1:2d00` | 38.4 / 39.0 | — |
+| AAP `Starting AAP service` → `Session created` | 40.4 → 43.4 | — |
+| `ctxtChg androidauto AndroidAutoUI` (after `RequestBTPairing: already paired`) | 45.7 | — |
+
+- The AA projection waits on the Bluetooth stack: `bds` (7.7 s from start to ready flag, of which ~1.4 s is the BlueGo UART init) → `jciPA` → `jciBCA` → `mfid` → `devicemanager` (4.5 s) → `jciAAPA`. The USB hubs are up at ~14.6 s (`jciUSBMGR` started) and the phone is enumerated long before the switch to accessory mode.
+- In the running log the first `BDS` line comes ~3 s after SM starts `bds`.
+- From `jciAAPA` start to the AA screen: ~7.8 s (AOA switch ~0.5 s, AAP session create ~3 s, BT pairing check ~1.8 s).
+- Both cores are 90–100 % busy from ~25 s to ~50 s (`/proc/stat` sampled, one boot). The chain is slow from waiting, not from its own work: `bds` used under 0.6 s of CPU (utime + stime) in its 7.7 s start.
+- `devicemanager` (`/jci/devicemanager/libdevicemanager.so`) logs nothing to the running log during its start (its own log targets are `/tmp/RACE_LOG.txt`, `/tmp/devmgr_debug.txt`). It handles both iAP (CarPlay, iPod) and AOA (Android Auto) devices.
+- `mfid` (`/usr/bin/mfid`) is the Apple MFi auth-chip daemon: I2C (`/dev/i2c*`, `Device I2C address`), unix socket `/tmp/MFISocket`; links only `libprotobuf-c`, `librt`, `libpthread`, `libc`, so it uses no Bluetooth or D-Bus. Its `jciBCA` dependency in `sm.conf` / `sm_WCP.conf` is ordering only. Users of the MFi socket/library: `blmjcicarplay.so`, `ipoddev_full_auth`, `libmfi.so`, `libCarPlayPlatformMFI.so`.
+- Services downstream of `mfid` (transitive `sm.conf` dependencies): `devicemanager` → `aap_service`, `jciCDRP`, `jciUSBMS` (→ `jciUSBM`, `jciITTS` → `jciITT`), `jciCARPLAY` (→ `stage_vr` → `natp` → `jciTTSPlayer`, `jciVUI` → `kapture`; → `jcibteca` → `jciPB` → `jciMSG`), `jciAAPA`.
+- Besides `devicemanager`, `jciAAPA` needs `jciRM` (~25.5 s) and `jciUpdatea` (~28.8 s). So with `devicemanager` up early, `jciAAPA` still cannot start before ~29 s.
+- AAP session create (~2.9 s, `Calling service create session` → `Session created`): XML config and certs ~0.3 s, then RACE init (gracenote client, DB restore), and a `gst-plugin-scanner` run (GStreamer 0.10 registry rebuild, `Failed to load plugin` warnings) during the last ~1.5 s. `gst-plugin-scanner` runs on every boot in the logs (b39, b40, b43; two scanner processes in b40).
