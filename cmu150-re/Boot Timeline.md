@@ -322,6 +322,20 @@ last service to start (`jciMSG`), the chain is (seconds, start → started):
   services did not change. The delay sat inside GUI app init, between the Disclaimer context
   and the end of init (`vehsettingsApp.js:7050` line). No DVD/TV error or dbus timeout appeared in
   the log, so the waiting party is not identified.
+- Who uses `jcidvd` / `jcitv` (rootfs search for `com.jci.dvd`, `com.jci.tv` and their client
+  libraries): only `libjcidvd_client.so` / `libjcitv_client.so`, loaded by the MMUI adapters
+  `/jci/mmui/uia/libjciuiadvd.so`, `libjciuiatv.so` and by `libjciaudioaggregator.so`. All client
+  calls are async (`JCIDBUS_method_send_async_with_notify`). The adapters subscribe to the SM
+  `SERVICE_STARTED` event and mark the service available when it arrives. The audio aggregator
+  registers no SM callback for DVD or TV (it does for AAP, CarPlay, CD, radio, USB). In the GUI, `dvd`
+  and `tv` appear only as hidden entries in the `systemApp.js` source list.
+- With the services on, `jcidvd` / `jcitv` start at 37.8–39.3 s (after `jciBCA`). That is after
+  `vehsettingsApp.js:7050` (34.8–35.8 s), so they are not yet running in the window that was slower.
+  The MMUI DVD/TV adapter lines are the same with and without the services
+  (`UIA_TV_InitializeGui`, then `hand_shake_reply = NULL` at once). The slower window
+  (`UIA_DVD_InitializeGui` → `7050`: 6.3 / 9.9 / 8.7 s off, 6.2 / 5.4 / 5.6 s on) has no single stall:
+  no gap longer than 0.35 s, so the time is spread over the whole window. No component that waits
+  for DVD/TV was found. With 3 boots per side, the ~2 s difference may be noise.
 
 ## Boot log volume (one boot, `running_log`)
 - 11 585 lines (1.67 MB) up to ~60 s: Info 10 757 (93 %), Error 368, Warn 367, Note 43,
