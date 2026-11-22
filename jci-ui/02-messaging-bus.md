@@ -16,7 +16,7 @@ http host) or defaults to `127.0.0.1`.
 
 `<ip>` = regex `http://([^/:]+)` on `document.URL`, else `127.0.0.1`. On target
 it's localhost. Each socket auto-reconnects every 500 ms; a close *after* a
-successful connect calls `framework._restartCMU(...)` (hard GUI restart).
+successful connect calls `framework._restartCMU(...)` (hard GUI restart). Reloading the page reboots the whole unit ~1 min later, see [[01-architecture-and-boot]] "Page reload reboots the unit".
 
 ---
 

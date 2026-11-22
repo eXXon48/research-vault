@@ -10,7 +10,9 @@ Sources for the layout: `/proc/partitions`, `/proc/mtd`, `df -h`, `/proc/mounts`
 `blockdev --getsize64` per device ([[blockdev]], [[df]]).
 
 ## Layout
-- **MTD NOR/NAND flash** holds the system partitions (`/proc/mtd`).
+- **MTD NOR/NAND flash** holds the system partitions (`/proc/mtd`). SPI-NOR (8 MiB, `mtd0`–`mtd8`:
+  bootstrap, boot-select, ibc1, ibc2, nv-config, config, jci-boot-diag, fail-safe, update) with
+  offsets and the `boot-select` flag: [[Boot Chain and Fail-Safe]].
 - **`/config-mfg`** = `mtd5` ("config"), a **squashfs** (gzip). The partition is
   ~384 KB but only ~1167 bytes are used. **Read-only**; per-unit keys and
   calibration. Never written — see [[config-mfg Keys Partition]].

@@ -141,6 +141,70 @@ The GUI is dark until a multi-step handshake completes. Sequence:
 So the three GUI→native milestones, in order:
 `Global.GetStartupSettings` → `Global.InitGui` → `InitializeGuiComplete`.
 
+## Boot-time cost (fw 74.00.324A)
+
+What the GUI does between Opera start and the Home screen:
+
+- MMUI sends `ctxtChg` with `ctxtId:"Idle"` to about 40 apps before the Home screen.
+  `GuiFramework._contextChange` returns at once for `Idle`, so these load nothing.
+- Apps load **only** on a real message for an app not yet in `_appStack`:
+  a `msg`, an `alert`, a `focusStack` top, or a non-`Idle` `ctxtChg` (`routeMmuiMsg` → `_addAppFiles`).
+  Loads are **serial**: the state leaves IDLE, and every other MMUI message waits in `_msgQueue`.
+- Apps seen loaded before the Home screen (log lines from them): `system`, `syssettings`,
+  `vehsettings`, `dab`, `fmradio` (`ctxtChg NowPlaying` when FM is the last source), plus `common`.
+- JS that Presto parses on that path, in bytes:
+
+  | File set | Bytes | Without comment lines / indentation |
+  |---|---|---|
+  | framework/js (8 files) + common/js | ~370 K | — |
+  | apps/vehsettings (1 file) | 645 484 | 439 126 |
+  | apps/fmradio (42 files, all js) | 569 447 | — (app file 219 445 → 157 346) |
+  | apps/system (all js) | 336 681 | — (app file 142 069 → 88 131) |
+  | apps/syssettings | 283 583 | — (app file 276 511 → 201 545) |
+  | apps/dab | 91 324 | — |
+
+  Dictionaries are small (en_US: 2–28 KB per app).
+- `Log.js` `_log`: the only cheap exit is the `__global__` gate. `logDefaults.js` sets
+  `"__global__": "info"`, so every `log.info` / `warn` / `error` call builds `new Error().stack`
+  and runs a regex over it before the message goes to the native `JCILogger`. The native side
+  then drops most `Info` lines: a whole boot leaves 7 GUI `Info` lines in
+  `/var/log/running_log/log`. On the boot path, `vehsettingsApp.js` alone has 169 `log.info` and 96 `log.warn` calls in its source.
+  `log.debug` stops at the gate.
+- The Home screen `ctxtChg` comes from MMUI only after the GUI has answered the disclaimer.
+  The disclaimer is answered only once the queue drains (framework back to IDLE), so the whole
+  serial load chain sits on the critical path.
+
+### Measured GUI boot profile (fw 74.00.324A, 2 boots)
+
+Times in ms after the first framework script runs (≈19–20 s uptime). Two boots, the
+second slower overall; the pattern is identical.
+
+| step | boot A | boot B |
+|---|---|---|
+| common + global controls loaded, framework `idle` | 1 200 | 1 300 |
+| first MMUI message (`msg syssettings/Region`) | 5 260 | 5 180 |
+| MMUI sends `ctxtChg system/Disclaimer` | 10 970 | 10 270 |
+| Disclaimer displayed (`_templateDisplayed`) | 15 170 | 17 940 |
+| MMUI sends `ctxtChg system/HomeScreen` | 15 755 | 19 290 |
+| HomeScreen displayed | 16 620 | 19 920 |
+
+- **1.2–5.2 s: GUI idle**, waiting for the first MMUI message. Not GUI work.
+- **5.2 s → HomeScreen: one serial chain of app loads.** `routeMmuiMsg` is strict FIFO
+  (`_msgQueue`, filled while the framework is not `idle`). A `msg`/`alert`/`focusStack`
+  for an app that is not loaded calls `_addAppFiles`, and the whole queue waits for that
+  script to load, parse and init. About 22 apps load before HomeScreen.
+- **The Disclaimer `ctxtChg` waits 4–7 s in the queue** behind loads that data-only messages
+  triggered: favorites, backupparking, netmgmt, amradio, cd, ecoenergy, warnguide, dab,
+  xmdata, satradio, tutorial. On an EU car, xmdata and satradio (SiriusXM) are dead weight,
+  and together they cost about 1 s.
+- Per-app script load (fetch + parse + run): vehsettings 1.2–2.0 s, xmdata 0.6–0.75 s,
+  syssettings/system/common/sysupdate about 0.5 s each, most others 0.05–0.4 s.
+  `_initApp` itself is 1–50 ms. Parse dominates, not init.
+- The JS thread is blocked (timer lag > 60 ms) for 11–15 s of the first 19–22 s.
+- `Log.js` stack lookup costs 0.08–0.16 ms per line, and only 11–43 lines pass the level
+  gate per boot. **This is not a boot cost.**
+- After HomeScreen, dvd, idm, vdt and schedmaint still load; they do not delay Home.
+
 ## Framework state machine
 
 `GuiFramework._frameworkState` gates message processing. States seen:

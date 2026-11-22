@@ -36,3 +36,8 @@ cd /tmp && XDG_RUNTIME_DIR=/tmp WAYLAND_DISPLAY=wayland-0 /usr/bin/screenshot
   screen.
 - Other observability surfaces: logs at `/var/log/running_log/log`, and a live JS console
   through the HMI injection hook ([[Custom Apps (HMI)]]).
+- `/var/log/running_log/log` rotates about once a minute after boot into
+  `log_0000.tar.gz` … `log_0004.tar.gz` in the same directory (gzip tar, oldest first). Lines from
+  HMI start are in the archives a few minutes later:
+  `tar -xzOf log_0000.tar.gz | grep -a <text>`. GUI log lines carry the tag
+  `GUI_<APP>[pid] <Level> (<file>:<line> )`.
