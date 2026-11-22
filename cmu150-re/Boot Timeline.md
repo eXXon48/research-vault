@@ -452,3 +452,18 @@ Seconds since kernel start. The phone was plugged in during the boot (b40, with 
 - Services downstream of `mfid` (transitive `sm.conf` dependencies): `devicemanager` → `aap_service`, `jciCDRP`, `jciUSBMS` (→ `jciUSBM`, `jciITTS` → `jciITT`), `jciCARPLAY` (→ `stage_vr` → `natp` → `jciTTSPlayer`, `jciVUI` → `kapture`; → `jcibteca` → `jciPB` → `jciMSG`), `jciAAPA`.
 - Besides `devicemanager`, `jciAAPA` needs `jciRM` (~25.5 s) and `jciUpdatea` (~28.8 s). So with `devicemanager` up early, `jciAAPA` still cannot start before ~29 s.
 - AAP session create (~2.9 s, `Calling service create session` → `Session created`): XML config and certs ~0.3 s, then RACE init (gracenote client, DB restore), and a `gst-plugin-scanner` run (GStreamer 0.10 registry rebuild, `Failed to load plugin` warnings) during the last ~1.5 s. `gst-plugin-scanner` runs on every boot in the logs (b39, b40, b43; two scanner processes in b40).
+- GStreamer registry location: `aap_service` and `opera` run with `HOME=/`, and `/` is the read-only `relfs`, so `/.gstreamer-0.10/` does not exist and the registry cannot be saved. This is why `gst-plugin-scanner` runs on every boot. `GST_REGISTRY` (GStreamer 0.10) can point the registry at a writable path.
+- Phone drops accessory mode when the AA services start late (b46, phone plugged in, Home 32.4 s): USB switched the phone to accessory mode at ~32.8 s, but `jciAAPA` was up only at 41.5 s. At 41.45 s (kernel) the phone detached, re-enumerated, and accessory mode was set again at ~53.0 s. `AAP_PROJECTION_SETUP` followed at ~54.4 s. In b40 (accessory at 38.4 s, session at 43.4 s) there was no second cycle. So a gap of ~9 s between accessory mode and `jciAAPA` costs one full reconnect (~11 s).
+- Running-log timestamps are the time the line was written, in batches: a kernel line stamped 41.45 s was written ~1 s later. Treat log times as ±1 s.
+
+## Screen-dark offset (stopwatch vs log, b46)
+
+The stopwatch was started when the screen went dark on a `GenericReboot(0)`.
+
+| Event | Stopwatch (s) | Log, since kernel start (s) | Difference (s) |
+|---|---|---|---|
+| Home ready (`Recv ctxtChg:HomeScreen`) | 37.6 | 32.4 | 5.2 |
+| Boot animation visible / `tranlogo is started` | 34.1 | 25.2 | 8.9 |
+| Android Auto on screen / `AAP_PROJECTION_SETUP` | 63.8 | 54.4 | 9.4 |
+
+Screen dark to kernel start is ~5 s (Home is the sharpest event). The animation becomes visible ~3.7 s after `tranlogo is started`. The Android Auto picture comes ~4 s after `AAP_PROJECTION_SETUP`. A Home that still responds slowly was reported at 41.8 s on the stopwatch.
