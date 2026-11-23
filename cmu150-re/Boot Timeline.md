@@ -577,3 +577,13 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
   (`audio_control` → `audio_manager` → tuner/CD/AUX services).
 - All metric markers used for boot timing (`tranlogo is started`, `ctxtChg`, `DisposeIntroVideo`,
   `[Androidauto]Available Status true`) are Info-level MMUI/GUICORE lines.
+- Inside `jciMMUI`: `svcjcimmui.so` (23 KB) plus `libjciuiamgr.so` (UIAMGR) load the UIA modules listed in
+  `/jci/mmui/mmui_config.xml`, in file order, all `block="true"`: each library is loaded and its
+  `UIA_<NAME>_Open` is called before the next one (`block="false"` would load it in a thread;
+  `failaction="continue"`). 43 modules: common, system, backupparking, emnavi, btpairing, netmgmt, email,
+  contacts, pandora, usbaudio, phone, fmradio, sysupdate, btaudio, audiosettings, amradio, mobile911, sms,
+  syssettings, vehsettings, auxin, satradio, diag, cd, dvd, tv, stitcher, aharadio, favorites,
+  hdtrafficimage, ecoenergy, schedmaint, warnguide, tutorial, driverid, idm, dab, vdt, vsm, carplay,
+  androidauto, xmaudio, xmdata.
+- Same boot: `jciMMUI` start 19.03, first MMUI log line 20.16, UIA module log lines appear one after
+  another from 20.8 (`MMUI_SYSTEM`) to 23.5 (`MMUI_DRIVERID`), about 70 ms per module; SM `STARTED` 23.42.
