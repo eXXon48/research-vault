@@ -55,3 +55,13 @@ rewrites `r_jci_log_tstamp` and `r_nonjci`. Together they fill the `jci_*` value
 The 3.3 open-source build has no disk buffer.
 
 See also: Boot Timeline ("Boot log volume"), Partitions and Storage (`/data_persist/log/`).
+
+## Producer side: `com_jci` log device
+- Services log through the kernel module `com_jci.ko` (misc device `com.jci.cpp.common.Log`); the
+  `jci` Logger process (`libjci.so`, `Logger.xml`, sink `system://`) forwards to syslog.
+- Runtime attributes in `/sys/devices/platform/com.jci.cpp.common.Log/` (mode 0666): `level`
+  (`Info` at boot), `enable`, `strip`, `lossless`, `pause`, `capacity` (1048576), `discard`,
+  `metadata`, `statistics`, `notify`, `test`. The module also carries `<Process>`/`<Zone>`/`<Levels>`
+  format strings, which suggests per-process or per-zone levels (not tested).
+- The boot-time level comes from `/config/common/log/settings.txt` (`COMMON_LOG_LEVEL=Info`);
+  `jci-log.sh level` rewrites it, `jci-log.sh reset` sets it back to Info.

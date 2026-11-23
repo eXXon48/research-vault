@@ -551,3 +551,29 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
 - The Android Auto item in the Applications menu turns active on `MMUI_ANDROIDAUTO ... uiaAndroidauto_Available_cb) [Androidauto]Available Status true`, sent right after `aap_create_session returns 0` (`BLM_AAPA ... AAPA_Available signal send`). This happens before projection starts, and does not need it.
 - The status-bar icon (`UIA_SYSTEM_OnStatusMenuUpdate appName=androidauto ... appStatus=1`) comes much later (~44–55 s), together with projection.
 - One cold power-on, stopwatch from the power button to the item turning active: 41 s, log 34.4 s, so ~6.6 s between the button and the log's time base plus GUI render.
+
+## Critical chain to the boot animation and Home (fw 74.00.324A, one boot, SM tweaks: `mfid` on `stage_3`, GUI framework holds background apps)
+`sm.conf` + SM events + `running_log`, uptime in s:
+
+| t | event |
+|---|---|
+| 13.72 | `Opera` started |
+| 15.22 → 17.48 | `audio_control` (`audioCtrl.lua`) start → started (2.3 s) |
+| 17.48 → 17.89 | `audio_manager` |
+| 17.90 → 18.97 | `jciRadio`, `jciCD`, `jciauxin` (depend on `jciVBS`, `audio_manager`; `jciRadio` also `settings`, `jciTds`) |
+| 19.03 | `jciMMUI` start (depends on `jciBUCPSA`, `jciBLMSettings`, `jciRadio`, `jciauxin`, `jciCD`) |
+| 21.07 | GUI: "GUI is ready. Sending Global.GetStartupSettings event to MMUI." |
+| 23.42 | `jciMMUI` started (3.9 s after start) |
+| 24.09 | MMUI processes `GetStartupSettings` (its event-queue threads wait for a "run semaphore" until MMUI is started) |
+| 24.34 | `tranlogo is started` / `IntroAnimation` |
+| 29.0 – 29.3 | `tranlogo` stopped, `Disclaimer` context |
+| 30.2 | `DisposeIntroVideo` (right after the `vehsettingsApp` "not initialized" line) |
+| 30.7 | `HomeScreen` |
+
+- Across six boots the GUI was still initialising for 1.2–2.9 s after `tranlogo` ended; `HomeScreen`
+  followed `DisposeIntroVideo` by 0.4–0.7 s. During that gap the last `TranLogo` frame (a picture of
+  the Home menu without the status bar) stays on screen.
+- So the GUI waits about 3 s for MMUI, and MMUI waits for the audio chain
+  (`audio_control` → `audio_manager` → tuner/CD/AUX services).
+- All metric markers used for boot timing (`tranlogo is started`, `ctxtChg`, `DisposeIntroVideo`,
+  `[Androidauto]Available Status true`) are Info-level MMUI/GUICORE lines.
