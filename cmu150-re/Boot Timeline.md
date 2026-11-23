@@ -513,3 +513,9 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
 - `jciAAPA` does pick up an adapter that attached before it started (`FindAndroidAutoDevice: AndroidAuto device is already connected` → `StartSession`). The loss comes from the first `session start` → `Session created` step: 2.3–4.7 s, in the CPU-heavy window. It includes the per-boot `gst-plugin-scanner` run.
 - Once a session exists, a re-attached adapter reaches projection ~0.5 s after `session start`.
 - Projection comes first time when `Session created` lands within ~8 s of the adapter's AOA re-enumeration.
+
+## GStreamer plugin registry is rebuilt on every stock boot (fw 74.00.324A)
+- GStreamer 0.10 on glib 2.22 takes its home directory from the passwd entry, not from `$HOME` (`HOME=/` for SM services is ignored). That home is `/root`, a stock symlink to `/tmp/root` (tmpfs, created by `init_cmu`).
+- So the registry is written each boot to `/tmp/root/.gstreamer-0.10/registry.arm.bin` (~66 KB) and lost at the next boot; `gst-plugin-scanner` rescans every plugin at ~40 s, during the Android Auto session setup.
+- `GST_REGISTRY` (honoured by libgstreamer-0.10) sets the registry file path. SM services inherit their environment from `/etc/profile` (a regular rootfs file; `/etc/passwd` is the link to `/config-mfg`). With `export GST_REGISTRY=<file on /data_persist>` there, the scanner ran only on the first boot.
+- Measured with a wireless AA USB adapter (3 boots, cached registry): AA projection at 37.7 / 39.4 / 38.5 s uptime (avg 38.5), against 42–55 s with the scanner.
