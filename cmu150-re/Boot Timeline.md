@@ -528,3 +528,10 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
 - Opera maps every font in `OPERA_FONTS` (`/jci/fonts/CHN`, 17 TTF files incl. CJK, Arabic, Hebrew, Thai) at start-up. Opera's disk cache is off (`[Disk Cache] Enabled=0`); Presto keeps no compiled-JS cache on disk.
 - No `/etc/ld.so.cache` and no fontconfig on the rootfs.
 - SiriusXM services `jciSXMS` and `jciXMMGR` are `autorun="yes"` in both SM configs, also on EU units; `XM_RADIO` logs tuner status at ~22 s.
+
+## Media album art sources and the Gracenote dependency (fw 74.00.324A, stock image strings)
+
+- **USB media** (`/jci/usbm/usbms` + `/usr/lib/librace_interface.so`, RACE): album art is read from the file itself first (`race_get_albumart_info` / `race_read_albumart`: offset, size, MIME type of the embedded picture). Only when that fails does it fall back to Gracenote (`Failed to retrieve Albumart from device, trying to get Gracenote Albumart` → `GRACENOTE_CoverArtLookup`). The art is saved as a BMP under `/tmp/albumart` and announced with the `com.jci.usbms` `AlbumArtReady` signal.
+- RACE uses Gracenote for: fallback cover art, metadata lookup (`GRACENOTE_DBLookup`), "More Like This" playlists (`race_gnw_get_morelikethis`), and a collection DB (`/tmp/gracenotedb/`, saved to `/data/gracenotedb_save/`). It has failure paths (`Gracenote support is disabled`, `Can not connect to gracenote server.`, `Gracenote wrapper init failed`); no reconnect logic is visible in the strings, so a Gracenote that is absent at RACE init most likely stays unavailable for that boot.
+- `jciUSBMS` and `jciUSBM` have no `gracenote_server` dependency in `sm.conf` (only `devicemanager`, and `jciUSBMS`/`jciBLMSettings`/`audio_manager`/`jciRM`). `jciBTMUSIC` does depend on it.
+- **Bluetooth media** (`bds`, `svcjcibtmusic.so`): no AVRCP 1.6 / BIP cover-art strings; BT art comes only from Gracenote (`No gracenote update. No album art.` otherwise).
