@@ -535,3 +535,9 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
 - RACE uses Gracenote for: fallback cover art, metadata lookup (`GRACENOTE_DBLookup`), "More Like This" playlists (`race_gnw_get_morelikethis`), and a collection DB (`/tmp/gracenotedb/`, saved to `/data/gracenotedb_save/`). It has failure paths (`Gracenote support is disabled`, `Can not connect to gracenote server.`, `Gracenote wrapper init failed`); no reconnect logic is visible in the strings, so a Gracenote that is absent at RACE init most likely stays unavailable for that boot.
 - `jciUSBMS` and `jciUSBM` have no `gracenote_server` dependency in `sm.conf` (only `devicemanager`, and `jciUSBMS`/`jciBLMSettings`/`audio_manager`/`jciRM`). `jciBTMUSIC` does depend on it.
 - **Bluetooth media** (`bds`, `svcjcibtmusic.so`): no AVRCP 1.6 / BIP cover-art strings; BT art comes only from Gracenote (`No gracenote update. No album art.` otherwise).
+
+## Android Auto entry in Applications becomes active (fw 74.00.324A)
+
+- The Android Auto item in the Applications menu turns active on `MMUI_ANDROIDAUTO ... uiaAndroidauto_Available_cb) [Androidauto]Available Status true`, sent right after `aap_create_session returns 0` (`BLM_AAPA ... AAPA_Available signal send`). This happens before projection starts, and does not need it.
+- The status-bar icon (`UIA_SYSTEM_OnStatusMenuUpdate appName=androidauto ... appStatus=1`) comes much later (~44–55 s), together with projection.
+- One cold power-on, stopwatch from the power button to the item turning active: 41 s, log 34.4 s, so ~6.6 s between the button and the log's time base plus GUI render.
