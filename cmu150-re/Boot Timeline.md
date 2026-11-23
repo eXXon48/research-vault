@@ -481,3 +481,17 @@ The stopwatch was started when the screen went dark on a `GenericReboot(0)`.
 | Android Auto on screen / `AAP_PROJECTION_SETUP` | 63.8 | 54.4 | 9.4 |
 
 Screen dark to kernel start is ~5 s (Home is the sharpest event). The animation becomes visible ~3.7 s after `tranlogo is started`. The Android Auto picture comes ~4 s after `AAP_PROJECTION_SETUP`. A Home that still responds slowly was reported at 41.8 s on the stopwatch.
+
+## `mfid` on `stage_3`, DVD/TV off (b48–b53, fw 74.00.324A, GUI tweaks, wireless AA USB adapter)
+
+`mfid`'s `jciBCA` dependency was changed to `stage_3` (both SM files). b51–b53 also had `jcidvd` and `jcitv` set `autorun="no"`. Seconds since kernel start:
+
+| | `mfid` | `devicemanager` | `jciAAPA` | AAP session | Home | `AAP_PROJECTION_SETUP` |
+|---|---|---|---|---|---|---|
+| stock deps (b46, b47) | 34.4–34.6 | 38.5–39.4 | 41.5–41.7 | 42.3–42.5 | 32.4–33.5 | 54.4–57.7 |
+| `mfid` → `stage_3` (b48–b50) | 24.8–25.4 | 30.7–34.0 | 34.1–37.0 | 35.0–37.6 | 33.3–34.6 | 57.8 / 46.4 / 42.2 |
+| + DVD/TV off (b51–b53) | 24.6–25.3 | 31.7–32.8 | 34.7–35.8 | 35.6–36.1 | 33.2–34.7 | 55.2 / 55.6 / 42.1 |
+
+- The Android Auto host side (`jciAAPA`, AAP session) is ready ~6–7 s sooner. Home did not move.
+- `jcidvd` / `jcitv` off made no difference to Home (33.2–34.7 s against 33.3–34.6 s). This agrees with the static finding that nothing waits for them.
+- With a wireless Android Auto USB adapter, the time to projection is set by the adapter: it detaches and stays off the bus ~10–13 s at a point that varies per boot. Projection came at ~42 s when the adapter connected once (b50, b53), and at 46–58 s when it went through an extra detach cycle. A phone on a USB cable was not tested.
