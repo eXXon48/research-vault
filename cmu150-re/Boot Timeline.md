@@ -495,3 +495,21 @@ Screen dark to kernel start is ~5 s (Home is the sharpest event). The animation 
 - The Android Auto host side (`jciAAPA`, AAP session) is ready ~6–7 s sooner. Home did not move.
 - `jcidvd` / `jcitv` off made no difference to Home (33.2–34.7 s against 33.3–34.6 s). This agrees with the static finding that nothing waits for them.
 - With a wireless Android Auto USB adapter, the time to projection is set by the adapter: it detaches and stays off the bus ~10–13 s at a point that varies per boot. Projection came at ~42 s when the adapter connected once (b50, b53), and at 46–58 s when it went through an extra detach cycle. A phone on a USB cable was not tested.
+
+## Wireless Android Auto USB adapter vs AAP session timing (b47–b53)
+
+Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android device, is switched to AOA (`18d1:2d00`) by `CPP_USBMGR`. Seconds since kernel start; "AOA dev" = re-enumerated in accessory mode, "created" = `Service:Session created`.
+
+| Boot | AOA dev | AAP `session start` | created | adapter detach | projection |
+|---|---|---|---|---|---|
+| b50 | 36.6 | 37.2 | 41.9 | — | 42.2 |
+| b53 | 36.2 | 37.7 | 41.5 | — | 42.1 |
+| b49 | 23.0 → detach 31.6, again 43.3 | 43.3 | 45.9 | 31.6 | 46.4 |
+| b47 | 36.7 | 43.0 | 45.3 | 46.3 | 57.7 |
+| b51 | 32.3 | 36.7 | 40.9 | 41.5 | 55.2 |
+| b52 | 32.6 | 37.7 | 42.4 | 41.8 | 55.6 |
+
+- In accessory mode the adapter waits ~8.6–9.8 s for the head unit's AAP traffic, then detaches and stays off the bus ~10–13 s. (One boot, b48, kept it for ~23 s.)
+- `jciAAPA` does pick up an adapter that attached before it started (`FindAndroidAutoDevice: AndroidAuto device is already connected` → `StartSession`). The loss comes from the first `session start` → `Session created` step: 2.3–4.7 s, in the CPU-heavy window. It includes the per-boot `gst-plugin-scanner` run.
+- Once a session exists, a re-attached adapter reaches projection ~0.5 s after `session start`.
+- Projection comes first time when `Session created` lands within ~8 s of the adapter's AOA re-enumeration.
