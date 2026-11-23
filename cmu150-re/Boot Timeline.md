@@ -535,6 +535,16 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
 - RACE uses Gracenote for: fallback cover art, metadata lookup (`GRACENOTE_DBLookup`), "More Like This" playlists (`race_gnw_get_morelikethis`), and a collection DB (`/tmp/gracenotedb/`, saved to `/data/gracenotedb_save/`). It has failure paths (`Gracenote support is disabled`, `Can not connect to gracenote server.`, `Gracenote wrapper init failed`); no reconnect logic is visible in the strings, so a Gracenote that is absent at RACE init most likely stays unavailable for that boot.
 - `jciUSBMS` and `jciUSBM` have no `gracenote_server` dependency in `sm.conf` (only `devicemanager`, and `jciUSBMS`/`jciBLMSettings`/`audio_manager`/`jciRM`). `jciBTMUSIC` does depend on it.
 - **Bluetooth media** (`bds`, `svcjcibtmusic.so`): no AVRCP 1.6 / BIP cover-art strings; BT art comes only from Gracenote (`No gracenote update. No album art.` otherwise).
+- **Observed on the bench (USB stick, FAT32):**
+  - Embedded ID3v2 `APIC`, baseline JPEG 160×160: shown.
+  - Embedded `APIC`, progressive JPEG 457×639: not shown. RACE logs `race_dbm_get_albumart_info ... Marker FFC2 found`, then `error=0x313`, so progressive JPEG is not supported.
+  - `Folder.jpg` / `AlbumArt*.jpg` next to the tracks, nothing embedded: not shown. RACE reads only the embedded picture.
+  - No picture at all: not shown.
+  - Each failure then tries the Gracenote fallback (`race_gnw_get_albumart`).
+- **Gracenote started late:**
+  - When `gracenote_server` starts after the boot-time `usbms` (~21 s), the RACE in that process logs `Gracenote wrapper init failed. Error=0x800`. Every later fallback then fails with `race_gnw_get_albumart ... Recieved NULL Pointers`. Playback uses this process.
+  - A stick inserted later starts a separate indexing process, and that one connects to Gracenote normally.
+  - BTMUSIC that starts without Gracenote logs `ServiceInit) Gracenote Connect failed` and does not retry; BT tracks get title and artist but no art until the next boot.
 
 ## Android Auto entry in Applications becomes active (fw 74.00.324A)
 
