@@ -579,11 +579,39 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
   `[Androidauto]Available Status true`) are Info-level MMUI/GUICORE lines.
 - Inside `jciMMUI`: `svcjcimmui.so` (23 KB) plus `libjciuiamgr.so` (UIAMGR) load the UIA modules listed in
   `/jci/mmui/mmui_config.xml`, in file order, all `block="true"`: each library is loaded and its
-  `UIA_<NAME>_Open` is called before the next one (`block="false"` would load it in a thread;
-  `failaction="continue"`). 43 modules: common, system, backupparking, emnavi, btpairing, netmgmt, email,
+  `UIA_<NAME>_Open` is called before the next one (`failaction="continue"`). 43 modules: common, system, backupparking, emnavi, btpairing, netmgmt, email,
   contacts, pandora, usbaudio, phone, fmradio, sysupdate, btaudio, audiosettings, amradio, mobile911, sms,
   syssettings, vehsettings, auxin, satradio, diag, cd, dvd, tv, stitcher, aharadio, favorites,
   hdtrafficimage, ecoenergy, schedmaint, warnguide, tutorial, driverid, idm, dab, vdt, vsm, carplay,
   androidauto, xmaudio, xmdata.
 - Same boot: `jciMMUI` start 19.03, first MMUI log line 20.16, UIA module log lines appear one after
   another from 20.8 (`MMUI_SYSTEM`) to 23.5 (`MMUI_DRIVERID`), about 70 ms per module; SM `STARTED` 23.42.
+
+### jciMMUI start-up internals (from the stock binaries)
+
+- `ServiceInit` in `svcjcimmui.so` runs the whole start-up on one thread: parse the SM args
+  (`mouse=`, `keyboard=`, `display=`, WCP board flag), `UIAM_New` (opens the GUI link, starts the TUI
+  input reader threads and the two UIAMGR event-queue threads), `mmuiLoadUias`, then
+  `GUIIFM_Internal_AppsLoadingFinish` and `UIAM_Run`. `ServiceRun` is only a 1 s SM ping loop.
+- The two UIAMGR threads (`blockedEventQueueThread`, `nonblockedEventQueueThread`) wait on a "run
+  semaphore". Only `UIAM_Run` posts it, after every UIA module is loaded. Until then no GUI event is
+  processed.
+- `mmuiLoadUias` reads `/jci/mmui/mmui_config.xml`, then for each `<Config>` calls `dlopen(path,
+  RTLD_NOW)` and the `api` function (default `APPL_Main`) synchronously. `svcjcimmui.so` imports no
+  `pthread_create`: the `block` attribute does not create a thread, despite the XML header comment.
+  It only selects whether the return value is compared with `passvalue` (mismatch → `exit(1)`, and
+  `jciMMUI` has `reset_board="yes"`).
+- `lib="ALL"` loads every `.so` in `libpath` (directory scan); the per-module form is used in stock.
+- The UIA directory `/jci/mmui/uia/` holds 44 libraries, about 11 MB in total (largest: xmaudio
+  0.89 MB, vehsettings 0.76 MB, syssettings 0.71 MB, system 0.67 MB).
+- Effect on Home: the GUI logs `GUI is ready. Sending Global.GetStartupSettings event to MMUI` at
+  20.8–21.0 s, but `GetStartupSettings` is processed only at `UIAM_Run` (23.7 s) in three measured boots.
+  The intro animation and Home follow that reply.
+- Per-module log windows in one boot (first log line to next module's first line): TUI/common
+  0.60 s, backupparking 0.21, pandora 0.24, audioaggregator 0.19, amradio 0.18, syssettings 0.18;
+  most others 0.02–0.13 s.
+- Radio, CD and AUX modules do not need their services to be up when they open: each queries SM
+  (`SM_GetServices`), uses the service when it reports "already running", and otherwise registers an
+  SM started-callback (`sm_event_fm_started_cb`, `sm_event_am_started_cb`, `sm_event_aux_started_cb`,
+  CD `SM_EVENT_SERVICE_STARTED`). `jciMMUI` in `/jci/sm/sm.conf` still depends on `jciBUCPSA`,
+  `jciBLMSettings`, `jciRadio`, `jciauxin`, `jciCD`; `tranlogo` and `quicktranlogo` depend on `jciMMUI`.
