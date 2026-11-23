@@ -519,3 +519,12 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
 - So the registry is written each boot to `/tmp/root/.gstreamer-0.10/registry.arm.bin` (~66 KB) and lost at the next boot; `gst-plugin-scanner` rescans every plugin at ~40 s, during the Android Auto session setup.
 - `GST_REGISTRY` (honoured by libgstreamer-0.10) sets the registry file path. SM services inherit their environment from `/etc/profile` (a regular rootfs file; `/etc/passwd` is the link to `/config-mfg`). With `export GST_REGISTRY=<file on /data_persist>` there, the scanner ran only on the first boot.
 - Measured with a wireless AA USB adapter (3 boots, cached registry): AA projection at 37.7 / 39.4 / 38.5 s uptime (avg 38.5), against 42–55 s with the scanner.
+
+## Per-boot caches and tmpfs content (fw 74.00.324A, one boot, ~5 min uptime)
+- `/tmp` (tmpfs, 93 MB) holds ~2.8 MB after boot. `/var`, `/root`, `/mnt`, `/media` and `/etc/resolv.conf` are rootfs symlinks into `/tmp`.
+- Files rebuilt every boot, with creation time since kernel start: `/tmp/devmgr_config_edit.xml` 15 s (VBS `sed` from a template), `/tmp/radio_database` 16 s (52 KB copy of `/data/radio/radio_database`), `/tmp/BdsConfiguration.xml` 27 s, `/tmp/vui_emnavi_poi.eco` 48 s, `/tmp/db1_con_cache.sqlite` (400 KB) and `/tmp/db1_ch_cache.sqlite` 54 s, `/tmp/vui_contacts0.eco`, `/tmp/sms.db`, `/tmp/email.db` 57 s. All after ~45 s are later than HomeScreen and the Android Auto projection.
+- RACE (USB media) keeps its resume DB only in tmpfs (`/mnt/tmp/race/database/RACE_ResumePlay.db`); at boot the restore finds nothing (`Stat failed`) and costs no time.
+- Fail-safe version: `jciUpdatea` runs `jci-failsafe-version.sh` (31.3 → 34.0 s in the log). Its fast path reads 22 bytes at offset 7339776 of the `fail-safe` MTD (`/dev/mtd7`, `MAZ_CMU-150_74.00.324A`); that `dd` takes ~0.03 s and the MTD name lookup ~0.07 s on an idle system, so the 2.7 s is scheduling delay under boot load.
+- Opera maps every font in `OPERA_FONTS` (`/jci/fonts/CHN`, 17 TTF files incl. CJK, Arabic, Hebrew, Thai) at start-up. Opera's disk cache is off (`[Disk Cache] Enabled=0`); Presto keeps no compiled-JS cache on disk.
+- No `/etc/ld.so.cache` and no fontconfig on the rootfs.
+- SiriusXM services `jciSXMS` and `jciXMMGR` are `autorun="yes"` in both SM configs, also on EU units; `XM_RADIO` logs tuner status at ~22 s.
