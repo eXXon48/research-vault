@@ -8,7 +8,7 @@ What kind of native executable the CMU150 runs, how to build one, and how `uinpu
 on the unit. Firmware `74.00.324A`. Related: [[Hardware and Firmware]].
 
 ## Target ABI
-- Kernel: Linux 3.0.35 (`/lib/modules/3.0.35/`). SoC i.MX6, Cortex-A9 (armv7, VFPv3).
+- Kernel: Linux 3.0.35 (`/lib/modules/3.0.35/`). SoC i.MX6, Cortex-A9 (armv7, VFPv3, NEON). `/proc/cpuinfo`: `ARMv7 Processor rev 10 (v7l)`, `Features: swp half thumb fastmult vfp edsp neon vfpv3`.
 - Userland: glibc 2.11.1 with BusyBox 1.19.2.
 - Dynamic linker: `/lib/ld-linux.so.3` (not the `-armhf` variant). There is no
   `arm-linux-gnueabihf` directory, so the userland is soft-float EABI (`gnueabi`).

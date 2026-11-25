@@ -86,3 +86,38 @@ Notes:
   from I420 > 45 fps. The bottleneck is the CPU colour conversion.
 - The `dd` loop does not pace frames: `framerate=24/1` in the caps only labels them.
 - Raw frames do not fit the Wi-Fi link: 24 fps x 1.5 MB = ~37 MB/s.
+
+## Video: IPU colour conversion + VPU encode, no CPU pixel work
+The fastest path found: the IPU converts the shown `fb0` page to I420 by DMA, and the VPU
+encodes it from the physical address. The CPU paces frames and copies the encoded bitstream.
+
+IPU task device `/dev/mxc_ipu` (kernel 3.0.35 BSP, `include/linux/ipu.h`):
+- `struct ipu_task` is 136 bytes. `IPU_CHECK_TASK` = `0xC0884901`, `IPU_QUEUE_TASK` = `0x40884902`,
+  `IPU_ALLOC` = `0xC0044903`, `IPU_FREE` = `0x40044904` (same numbers as in the stock
+  `libmfw_gst_ipu_csc.so`).
+- Input format `BGR4` (`fourcc('B','G','R','4')`) gives correct colours for `fb0`; output `I420`.
+- The shown page comes from `yoffset` (`FBIOGET_VSCREENINFO`); its physical address is
+  `smem_start + yoffset * line_length` (`FBIOGET_FSCREENINFO`, offsets 16 and 44 on 32-bit ARM).
+- An `IPU_ALLOC` buffer can be mapped through `/dev/mxc_ipu` (offset = physical address),
+  but the mapping is uncached: reading it runs at ~44 MB/s, ~31% of a core for 24 fps x
+  576000 bytes. Piping the frames into `gst-launch ... vpuenc` adds ~15%. With animations on
+  screen this path drops to ~18.5 fps.
+
+VPU through `/usr/lib/libvpu.so.4` (imx-lib vpulib 5.4.10, firmware 2.1.8):
+- The public imx-lib `vpu/vpu_lib.h` at `VPU_LIB_VERSION(5, 4, 10)` matches the stock library
+  (`EncOpenParam` is 2120 bytes on 32-bit ARM).
+- Flow (as in imx-test `mxc_vpu_test/enc.c`): `vpu_Init` → `IOGetPhyMem`/`IOGetVirtMem`
+  bitstream buffer → `vpu_EncOpen` (`STD_AVC`, `bitRate` in kbit/s, max 32767) →
+  `vpu_EncGetInitialInfo` → `vpu_EncRegisterFrameBuffer` (`minFrameBufferCount` reconstruction
+  buffers + 2 subsample buffers, stride a multiple of 16) → `ENC_PUT_AVC_HEADER` SPS, PPS →
+  per frame `vpu_EncStartOneFrame` (source `FrameBuffer` = the IPU I420 buffer) →
+  `vpu_IsBusy`/`vpu_WaitForInt` → `vpu_EncGetOutputInfo` (bytes at `bitstreamBuffer`).
+- `libvpu` prints its errors with `printf` to **stdout**.
+- `libvpu` is linked against the unit's glibc 2.11, so a program that loads it must be a
+  dynamic glibc binary (a static musl binary cannot `dlopen` it). glibc 2.11 has no
+  `getauxval` (2.16+), and its plain `mmap` takes a 32-bit `off_t` (use `mmap64`).
+- `vpu_Init` does not reload the firmware when the VPU already runs; `vpu_UnInit` shuts the VPU
+  down only when no instance is left. Several processes can use the VPU at once.
+
+Measured (800x480, 24 fps, 4 Mbit/s, HMI menus and the knob carousel animating): 600 of 600
+frames in 25 s, none dropped, ~0.3 s CPU time in total (~1% of one core).
