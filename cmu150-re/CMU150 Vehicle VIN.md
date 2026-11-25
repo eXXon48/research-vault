@@ -39,21 +39,39 @@ Call from a shell:
   this service socket enforces the same policy is not established.
 
 ## Model from the VIN
-- Positions 1–3 (WMI) are the manufacturer: `JMZ` is Mazda (Japan-built, Europe-spec);
-  `JM1`/`JM3` are Mazda (Japan-built, North-America spec, cars / SUVs).
-- Positions 4–5 are the Mazda chassis code. This is the commonly used pattern (not from
-  firmware). Codes:
-  - `BM`/`BN` Mazda3
-  - `GJ`/`GL` Mazda6
-  - `KE`/`KF` CX-5
-  - `DK` CX-3
-  - `DJ`/`DL` Mazda2
-  - `TC` CX-9
-  - `ND` MX-5
-- The prefix `JMZND` decodes as an MX-5 (ND), Europe-spec. The unit's
-  `/data_persist/model.txt` reads `Mazda_SB2`.
-- Position 10 is the model year in North-America VINs. Europe-spec VINs do not reliably
-  encode the year.
+Public reference tables (Wikibooks "Vehicle Identification Numbers (VIN codes)/Mazda/VIN Codes",
+Wikipedia "List of Mazda model codes"), not firmware.
+
+- Positions 1-3 (WMI), Mazda:
+  - `JM1` passenger car, `JM3` MPV/SUV (Japan-built, North-America layout).
+  - `JMZ` Europe and Israel export; `JM0` Oceania export; `JM4` `JM6` `JM7` other export.
+  - `3MD` Mazda2, `3MZ` Mazda3, `3MJ` CX-3 (Mexico); `JC1` Mazda-built Fiat 124 Spider.
+- Positions 4-5 are the Mazda model (chassis) code on Mazda-style VINs. Codes of the models sold
+  with this head unit:
+
+  | Code | Model |
+  |---|---|
+  | `DJ` | Mazda2 / Demio (hatch) |
+  | `DL` | Mazda2 sedan; on Mexico-built `3MY` VINs, the Toyota-badged Scion iA / Yaris |
+  | `BM`, `BN` | Mazda3 / Axela (BN = BM facelift, not Japan) |
+  | `BY` | Axela Hybrid (Japan only) |
+  | `GJ`, `GL` | Mazda6 / Atenza (GL = GJ refresh) |
+  | `DK` | CX-3 |
+  | `GK` | CX-4 |
+  | `KE`, `KF` | CX-5 gen 1, gen 2 |
+  | `KG` | CX-8 |
+  | `TC` | CX-9 gen 2 |
+  | `ND` | MX-5 gen 4 |
+  | `NF` | Fiat 124 Spider |
+
+  Later codes (`BP` Mazda3, `DM` CX-30, `DR` MX-30, `KH`/`KK`/`KL` CX-60/90/80, `VA` CX-50) belong to
+  the next head-unit generation.
+- The prefix `JMZND` decodes as an MX-5 (ND), Europe export. The unit's `/data_persist/model.txt`
+  reads `Mazda_SB2` (the head unit, not the car).
+- North-America layout only: position 6 restraint, 7 body, 8 engine (per model: the same letter
+  means different engines on different models), 9 check digit, 10 model year, 11 plant
+  (`0` Hiroshima, `1` Hofu, `M` Salamanca). Export layouts (`JMZ`, `JM0`, `JM7`) use positions 6-11
+  as one series descriptor: no reliable year, engine or trim.
 
 ## Model from the HMI (no VIN needed)
 - The HMI keeps a vehicle program code: `framework.getSharedData('syssettings','VehicleType')`.
