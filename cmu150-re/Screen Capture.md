@@ -56,9 +56,33 @@ No stock screen recorder exists. Found in the stock rootfs (`74.00.324A`):
   source element (no `fbdevsrc`, no Wayland source). `mfw_v4lsrc` / `v4lcapture` are camera-in.
 - No `ffmpeg` binary.
 
-Consequences:
-- The screen reaches a pipeline only through `screenshot` (one PNG per call) or raw `/dev/fb0`
-  reads; whether `/dev/fb0` holds the composited HMI frame is not verified.
-- A `vpuenc` pipeline would write a raw elementary stream (e.g. `.h264`) via `filesink`; muxing
-  happens off-unit. Untested on the unit.
-- Frame rate of a `screenshot` loop: not measured.
+Framebuffers (`/sys/class/graphics`): `fb0` = `DISP3 BG`, virtual 800x960 (two 800x480 pages),
+32 bpp, stride 3200, byte order BGRX; `fb1` = `DISP3 FG` overlay, 800x1440, 16 bpp.
+`/dev/fb0` holds the composited HMI frame (checked against `screenshot`). Content drawn on the
+`fb1` overlay is not in `fb0`.
+
+## Video: measured (bench, HMI idle on a static screen)
+| Path | Rate |
+|---|---|
+| `screenshot` loop | ~1.7 fps (0.6 s per PNG) |
+| `dd if=/dev/fb0 bs=1536000 count=1` loop, to `/dev/null` | ~40 fps |
+| raw frames over `ssh` (2.4 GHz Wi-Fi, `wlan0`) | ~1.6 MB/s = ~1 fps |
+| `dd` loop piped into `lzop -1` | ~12 fps, ratio ~7x on a static screen |
+| `dd` loop, `fdsrc ! ffmpegcolorspace ! vpuenc codec=6` (H.264) | ~12.8 fps, ~3 KB/frame on a static screen |
+| same with `queue` elements between the stages | ~14 fps |
+
+Working pipeline (writes a raw H.264 elementary stream; colours and frame count verified with
+`ffprobe`/`ffmpeg` off-unit):
+
+```sh
+CAPS="video/x-raw-rgb,bpp=32,depth=24,endianness=4321,red_mask=65280,green_mask=16711680,blue_mask=-16777216,width=800,height=480,framerate=24/1"
+(while :; do dd if=/dev/fb0 bs=1536000 count=1 2>/dev/null; done) |
+  gst-launch-0.10 -q fdsrc blocksize=1536000 ! $CAPS ! ffmpegcolorspace !   video/x-raw-yuv,format=\(fourcc\)I420 ! vpuenc codec=6 bitrate=2000000 ! filesink location=/tmp/out.h264
+```
+
+Notes:
+- `mfw_ipucsc` takes only YUV (NV12/I420) input, so RGB to YUV runs on the CPU (`ffmpegcolorspace`).
+- Alone, each stage is faster than the whole pipeline: `ffmpegcolorspace` ~38 fps, `vpuenc` H.264
+  from I420 > 45 fps. The bottleneck is the CPU colour conversion.
+- The `dd` loop does not pace frames: `framerate=24/1` in the caps only labels them.
+- Raw frames do not fit the Wi-Fi link: 24 fps x 1.5 MB = ~37 MB/s.
