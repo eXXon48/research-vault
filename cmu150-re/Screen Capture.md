@@ -41,3 +41,24 @@ cd /tmp && XDG_RUNTIME_DIR=/tmp WAYLAND_DISPLAY=wayland-0 /usr/bin/screenshot
   HMI start are in the archives a few minutes later:
   `tar -xzOf log_0000.tar.gz | grep -a <text>`. GUI log lines carry the tag
   `GUI_<APP>[pid] <Level> (<file>:<line> )`.
+
+## Video (stock rootfs inventory)
+No stock screen recorder exists. Found in the stock rootfs (`74.00.324A`):
+- `winston` (compositor) carries only the `screenshooter` protocol; no `wcap` / recorder.
+- GStreamer **0.10** only (`gst-launch-0.10`, `gst-inspect-0.10`). Plugins in `/usr/lib/gstreamer-0.10`:
+  core elements (`filesrc`, `fdsrc`, `filesink`, `capsfilter`, `queue`, `tee`), `ffmpegcolorspace`,
+  `videorate`, `videotestsrc`, `encodebin`, and the Freescale `mfw_*` set.
+- `libmfw_vpu.so` (`mfw_vpu`) contains a **hardware encoder `vpuenc`** (i.MX6 VPU, firmware
+  `/lib/firmware/vpu/vpu_fw_imx6{d,q}.bin`, `libvpu.so.4`). Caps strings in the plugin:
+  `video/x-h264`, `video/x-h263`, `mpeg4`, `image/jpeg`; input `video/x-raw-yuv`.
+- `libmfw_gst_ipu_csc.so` (`mfw_ipucsc`): hardware colour-space conversion.
+- No container muxer (no avi/mp4/matroska mux), no `multifilesrc`, no `videoparse`, no screen
+  source element (no `fbdevsrc`, no Wayland source). `mfw_v4lsrc` / `v4lcapture` are camera-in.
+- No `ffmpeg` binary.
+
+Consequences:
+- The screen reaches a pipeline only through `screenshot` (one PNG per call) or raw `/dev/fb0`
+  reads; whether `/dev/fb0` holds the composited HMI frame is not verified.
+- A `vpuenc` pipeline would write a raw elementary stream (e.g. `.h264`) via `filesink`; muxing
+  happens off-unit. Untested on the unit.
+- Frame rate of a `screenshot` loop: not measured.
