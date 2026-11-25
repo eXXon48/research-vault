@@ -7,7 +7,7 @@ tags: [cmu150, boot, sm, timing]
 When the System Manager (SM) stages and the big services start in a normal boot, and what the
 stage graph waits on. Firmware `cmu150_EU_74.00.324A`, legacy board (`/jci/sm/sm.conf`).
 Part of [[CMU150]]; NOR/boot-loader side in [[Boot Chain and Fail-Safe]], SM tool in
-[[SM Service Control (smctl)]].
+[[SM Service Control (smctl)]]. Service-level dependency and IPC map in [[SM Service Graph]].
 
 Sources: one boot's SM event dump (`PID,Component,Event,Timestamp`, timestamps = seconds since
 kernel start), the kernel log of the same boot, and stock `sm.conf`. One capture only; expect a
@@ -350,6 +350,12 @@ last service to start (`jciMSG`), the chain is (seconds, start → started):
   `d_ram_log` (process-log, 512), `d_error_log`, and `d_console` = `/dev/console` (ttymxc1 UART,
   115200 baud). Every line is also written to the UART; ~7.7 MB transmitted by uptime 1199 s.
   The UART has no flow control, so excess lines are dropped rather than blocking.
+- `COMMON_LOG_LEVEL=Warn` (read by `libjcicommon.so` at each process start; there is no
+  per-zone level key) cut one boot's log from about 20 000 lines to about 1 700 (to uptime
+  ~260 s). In that boot `jciCARPLAY` started 2.3 s and `SM_SERVER_CMD_RUNNING` 3.1 s earlier
+  than in the Info boot before it (single boot each). The usual boot marks (`HomeScreen`
+  ctxtChg, `[Androidauto]Available Status true`, `USB_CARPLAY_1] Initialized OK`) are Info
+  lines and are absent at Warn.
 
 ## Cutting the `stage_vr` wait (three boots, with the cpu1 move)
 The `sleep 5s` child of `stage_vr.sh` was killed as soon as it appeared (`pgrep -f stage_vr.sh`,
@@ -615,3 +621,140 @@ Adapter: USB name `smartBox`, serial `LY0123456789`, presents as an Android devi
   SM started-callback (`sm_event_fm_started_cb`, `sm_event_am_started_cb`, `sm_event_aux_started_cb`,
   CD `SM_EVENT_SERVICE_STARTED`). `jciMMUI` in `/jci/sm/sm.conf` still depends on `jciBUCPSA`,
   `jciBLMSettings`, `jciRadio`, `jciauxin`, `jciCD`; `tranlogo` and `quicktranlogo` depend on `jciMMUI`.
+
+## `ffxread01`: what the read thread does (from the stock FlashFX modules)
+
+Datalight FlashFX Tera v2.1.1 (build 2128DF): `ffxblk.ko` (block driver), `flashfx.ko` (VBF
+flash translation layer + NAND control), `ffxos.ko` (OS services + i.MX6 GPMI/BCH hook).
+
+- `ffxblk` creates one `ffxreadNN` and one `ffxwriteNN` kthread per disk. `ffxread` loops on
+  `blk_fetch_request`, sleeps on a semaphore when the queue is empty, and serves each request
+  synchronously in its own context: one request, one page at a time, no overlap.
+- Per NAND page (`PageRead`): send the READ command and address (`00h … 30h`), then
+  `FfxHookNTMX6ReadyWait`, which **busy-polls** the GPMI status register (offset `0xb0`, bit 24)
+  with no sleep until the chip is ready; then DMA the page with BCH hardware ECC
+  (`FfxHookNTMX6DMAStart`/`DMAFinish`; waits on completions signalled by the DMA and
+  `BCHIrqHandler` interrupts), then `dma_unmap_sg`.
+- Interrupts per page: the main NAND `PageRead` (`flashfx.ko` 0x24b4) calls
+  `FfxNandIfcSendCommand` twice (`00h`+address, then `30h`), `FfxNandIfcReadyWait` (busy-poll),
+  then `FfxNandIfcReadPage`. Each `SendCommand` is a separate one-shot GPMI DMA chain
+  (`AddPIOBlock` → `DMAStart` → `DMAFinish`, which sleeps in `wait_for_completion_timeout`);
+  `ReadPage` is a third chain with BCH and waits on both the DMA and the BCH completion. Result:
+  3 `mxs-dma` interrupts + 1 `GPMI NAND BCH` interrupt per page, each with a tasklet and a
+  sleep/wake of `ffxread`. `/proc/interrupts` agrees: `mxs-dma` 375 549, `GPMI NAND BCH` 124 152
+  (ratio 3.0), `TASKLET` 938 918 on cpu0. Mainline `gpmi-nand` puts command, address,
+  wait-for-ready and the data read in one chain (one interrupt per page).
+- All modules are built with `-pg` (`__gnu_mcount_nc` at every function entry). The kernel has
+  dynamic ftrace (`ftrace_make_nop`, `ftrace_module_notify` in `/proc/kallsyms`) and each module
+  has `__mcount_loc`, so these calls are patched to NOPs at load; `-pg` costs ~nothing at runtime.
+- Locking: every hardware access of the NAND device goes through `FfxDevIOProlog`/`FfxDevIOEpilog`
+  (`FfxDevIORequest`, `GenericRead`, `GenericWrite`, the `FfxDevNand*Block/PageStatus` calls),
+  which take the per-device DCL mutex `pDev[6]` (`pDev + 0x18`; the DCL mutex object wraps a
+  kernel `struct mutex` at its offset `0x14`, taken by `FfxDclOsMutexAcquire` → `mutex_lock`).
+  There is one FIM device: `aFIMHandles` (`flashfx.ko` `.bss + 0x1c8`, read by `FfxDevHandle`)
+  holds `pDev`. The module's section bases are in `/sys/module/flashfx/sections/` and function
+  symbols (local ones included) are in `/proc/kallsyms`; data symbols are not
+  (`CONFIG_KALLSYMS_ALL` off). Holding `pDev[6]` therefore gives exclusive use of the GPMI
+  controller against `ffxread`/`ffxwrite` and the compaction thread.
+- Kernel `.config`: the stock `/lib/modules/3.0.35/kernel/kernel/configs.ko` embeds it
+  (gzip after the `IKCFG_ST` marker; extractable offline). `SMP`, `PREEMPT`, `AEABI`,
+  `MXS_DMA`, `FUNCTION_TRACER`, `DYNAMIC_FTRACE`; no `DEBUG_MUTEXES`/lockdep, no
+  `MTD_NAND_GPMI_NFC`.
+- Module copies live in the rootfs at `/lib/modules/3.0.35/kernel/drivers/datalight/{flashfx,ffxos,ffxblk}/`;
+  the fail-safe initramfs (`mtd7`) loads its own Datalight modules.
+- Measured on a warm boot (uptime ~1100 s): `ffxread01` 11.18 s system time for 150.8 MB read from
+  `ffx01` (`/proc/diskstats`), i.e. **~74 ms CPU per MB** (~13.5 MB/s if CPU-bound); 123 k
+  `GPMI NAND BCH` interrupts. `ffx01` queue: `noop`, `read_ahead_kb` 128, `rotational` 1,
+  4096-byte logical blocks.
+- `/proc/<pid>/io` `read_bytes` at ~1044 s (includes `mmcblk0`): `natp` 40.7 MB (starts ~46 s),
+  `opera` 24.9 MB, `jciMMUI` 11.0 MB, `init` 7.8 MB, SM 5.1 MB, `jciVBS` 4.9 MB, `vim_app` 4.5 MB,
+  `jciUSBMGR` 4.2 MB, `usbms` 4.0 MB, `carplayd` 3.9 MB, `bds` 3.4 MB, `gracenote_server` 2.9 MB.
+- Consequence: every megabyte read from the rootfs during boot costs ~74 ms of kernel CPU in
+  `ffxread01`. Fewer bytes read (smaller readahead, fewer or smaller binaries loaded) is the
+  only lever; the driver itself is closed.
+- ftrace works on the stock kernel: mount debugfs (`mount -t debugfs none /sys/kernel/debug`),
+  filter `Ffx*` + `mxs_dma*` (440 functions), tracer `function_graph`. `available_filter_functions`
+  lists module functions without the `[module]` suffix.
+- Traced read of 1 MiB from `/dev/ffx00` (cold, `dd bs=64k`), 0.30 s with tracing on.
+  `/proc/interrupts` delta: `mxs-dma` +1647, `GPMI NAND BCH` +547 for 549 NAND page reads
+  (256 data pages of 4 KiB + 291 reads of the allocation-map load): exactly 3 DMA + 1 BCH
+  interrupts per `FfxNandChipPageRead`. The NAND page is 4 KiB (one page per 4 KiB block request). Inclusive times (tracing overhead included, ~2 µs per
+  traced call):
+
+| Function | Calls | Total | Per call |
+|---|---|---|---|
+| `FfxDriverReadData` (whole request) | 288 | 278 ms | 966 µs |
+| `FfxNandChipPageRead` (one NAND page) | 549 | 230 ms | 420 µs |
+| `FfxMediaMgrReadLnuAllocations` (FTL map load) | 4 | 149 ms | 37 ms |
+| `FfxNandIfcReadPage` (data DMA + BCH) | 291 | 90 ms | 309 µs |
+| `FfxFmlNandReadTags` (inside the map load) | 6 | 81 ms | 13.5 ms |
+| `FfxNandIfcSendCommand` (`00h`, `30h`) | 1098 | 68 ms | 62 µs |
+| `FfxNandIfcReadAux` (spare-area reads, map load) | 256 | 43 ms | 167 µs |
+| `FfxHookNTMX6DMAFinish` | 3294 | 113 ms | 34 µs |
+| `FfxNandIfcReadyWait` | 551 | 3.3 ms | 6 µs |
+
+- Half of that cold read is the VBF allocation-map load (`FfxMediaMgrReadLnuAllocations`, 4 calls,
+  149 ms), not data. Per data page the two command chains (`00h`, `30h`) cost ~124 µs and the data
+  chain ~309 µs; `ReadyWait` is short (6 µs) because the chip is ready by the time the `30h` chain
+  completes.
+- Raw reads of `/dev/ffx01p1` (2 MiB each, same tracing, ~15 min after boot):
+
+| Region | Time | Page reads | Map loads | Per 4 KiB request |
+|---|---|---|---|---|
+| offset 0 (read during boot) | 0.38 s | 511 | 0 | 674 µs |
+| offset 300 MiB | 0.48 s | 774 | 4 (150 ms) | 896 µs |
+
+  The allocation map of the boot-read region stays cached after boot; a region not read since
+  boot pays 4 map loads (37 ms each, mostly 256 spare-area reads) per 2 MiB, a third of its read
+  time. With a warm map a 4 KiB request costs ~674 µs traced: `FfxNandChipPageRead` 443 µs
+  (two command chains ~133 µs, data chain ~291 µs) and ~230 µs of FTL/driver code above it
+  (inflated most by tracing, it is many short calls).
+- Boot trace (function_graph on `FfxDriverReadData` + `FfxMediaMgrReadLnuAllocations` only, from the
+  `start_normal_mode.sh` hook at 7.9 s to 45 s; boot metrics unchanged by it): `ffxread01` served
+  24 747 requests of 4 KiB (~97 MB) in **18.8 s** of its own time; **744 allocation-map loads took
+  8.9 s** of that (median 9.7 ms, p90 16.6 ms, max 101 ms), i.e. one load per ~130 KB read and 47 %
+  of the read thread's time. Data alone is ~410 µs per 4 KiB. Between 8 and 16 s the thread is busy
+  1.3–1.6 s of every 2 s. Before 7.9 s `ffx01` had served 564 requests (15.9 MB) while the BCH
+  interrupt count was already 32 381 (≈8× the data pages), so mount/map reads dominate that window too.
+- VBF region cache (allocation maps of mounted regions), from `flashfx.ko` disassembly: created in
+  `FfxVbfCreate` with `N = clamp(R * 50 / 100, min(R, 2), 255)` slots of 5 588 bytes, where `R` is
+  the region count (`vbf + 0x28`); no option controls it. The cache object is at `vbf + 0x2038`
+  (slot count `+8`, slot pointers from `+0x10c`; a slot holds the region number at `+8`, a
+  refcount at `+4`, a last-use time stamp at `+0x14`); `N` is also stored at `vbf + 0x2034`.
+  Lookup and least-recently-used replacement are in the function at `flashfx.ko` 0x81c4; a miss
+  loads the region (`FfxMediaMgrReadLnuAllocations`). `FfxVbfHandle(disk)` (exported) returns a
+  pointer to the `vbf` pointer.
+- Read on the unit (read-only module, ~510 s uptime): disk 0 (`ffx00`) `R` = 24, `N` = 12;
+  disk 1 (`ffx01`) **`R` = 978, `N` = 255** (the 255 cap applies; 50 % would be 489), all 255 slots
+  in use, regions 0–977 present. A region of `ffx01` is ~0.93 MB, so the cache covers ~26 % of the
+  disk (~237 MB) while a boot reads from a ~448 MB used root file system: regions are evicted and
+  loaded again during boot.
+- Region-cache churn at boot (read-only sampler of the ffx01 cache slots every 20 ms from the
+  `start_normal_mode.sh` hook at 7.9 s to ~53 s, one boot): 106 regions already cached at 7.9 s;
+  201 region loads after that, 188 of them first loads and 13 reloads of an evicted region
+  (first reload at +25 s). The 255-slot cap therefore causes little re-reading during boot.
+  The same boot shows 771 `FfxMediaMgrReadLnuAllocations` calls (7–10 ms each), about 3.8 per
+  region load: one region load reads several allocation-map pieces in a row. The map cost at boot is
+  the first load of each region touched, not cache thrashing.
+- NAND chip (ONFI parameter data as decoded by `flashfx.ko`, read from kernel memory):
+  Micron `MT29F8G08ABABAWP` (JEDEC ID `0x2C`): 8 Gbit SLC, x8, 4096-byte page + 224-byte spare,
+  128 pages per block, 2048 blocks, 1 LUN; tR max 25 µs, tPROG max 500 µs, tBERS max 3 ms.
+- GPMI timing is fixed in `flashfx.ko`, not taken from the chip: `FfxNandIfcInit` calls
+  `FfxHookNTMX6SetTiming` with constants data setup 3, data hold 2, address setup 1 (GPMI cycles);
+  the register reads `TIMING0 = 0x00010203` on a running unit. The GPMI clock is not set by FlashFX
+  (`clk_get_rate` only): `CCM_CS2CDR = 0x000A0148` selects PLL3 (480 MHz, `ANALOG_PLL_USB1 =
+  0x80003040`) / 3 = 160 MHz, so one data cycle is 5 × 6.25 ns = 31.25 ns (~32 MB/s on the bus, about
+  ONFI timing mode 4). `CTRL1 = 0x00C6C00C` (DLL enabled). A 4 KiB page + spare transfers in ~135 µs;
+  with tR ≤ 25 µs the NAND part of a ~410 µs request is ~160 µs, the rest is driver, DMA-chain and
+  interrupt overhead. The exported `FfxHookNTMX6CalculateTiming` (computed timing) is not used.
+- A plain 4 KiB read is one NAND page read (2 commands, 3 DMA + 1 BCH interrupt). The separate
+  spare-area reads (`FfxNandIfcReadAux`) occur only inside allocation-map loads: in a traced 1 MiB
+  read, 4 map loads issued 256 spare reads.
+- Raw sequential read, 64 KiB blocks, 32 MiB, cold: eMMC `mmcblk0p1` 16.2 MB/s, FlashFX `ffx01p1`
+  8.8 MB/s. The kernel has `squashfs` built in (`/proc/filesystems`).
+
+- Serving hot rootfs files from eMMC (`data_persist`, relfs) instead of FlashFX does not speed up
+  the boot. Single test: 252 often-read files (114 MB) bind-mounted from `data_persist` over their
+  rootfs paths before SM start; time from `stage_1` start to Android Auto ready was 29.9 s against
+  23.45 s with the stock paths. A busybox shell loop needs ~9 ms per fork+exec on this unit, so
+  per-file shell work before SM costs seconds (252 files × 3 applet calls ≈ 8.6 s).

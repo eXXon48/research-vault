@@ -118,5 +118,35 @@ Linux 3.0.35. Normal mode: kernel → `init_cmu` → `/usr/bin/autostart` →
 `start_normal_mode.sh` → SM (`/jci/sm/sm`). Fail-safe: kernel + initramfs from `mtd7` →
 `/sbin/init` above.
 
+## Normal-mode kernel and initramfs (verified, read-only dump of `/dev/ffx00`)
+- `/dev/ffx00` (FlashFX disk 0, 22 908 928 bytes, no partition table) starts with the magic
+  `TOOB`; a zImage starts at offset 512 (2 404 776 bytes) and a gzip initramfs at offset
+  2 405 888 (newc cpio, 3 684 864 bytes unpacked, 55 entries). The kernel unpacks it at ~0.92 s
+  ("Freeing initrd memory: 1540K"). The `.up` component that writes it is `linux1`.
+- The initramfs `/init` is an ELF binary (7 564 bytes). It holds the Datalight modules
+  `ffxos`, `flashfx`, `ffxblk`, `relos`, `reliance`, `relfs` under
+  `lib/modules/3.0.35/kernel/datalight/`, plus `com_jci.ko`, `com_jci_cpp_nvram.ko` and the LVDS
+  driver. These load at ~1.48 s, before `ffx01p1` is mounted as root (~2.5 s).
+- The FlashFX modules there are byte-identical (md5) to the copies in the rootfs under
+  `/lib/modules/3.0.35/kernel/drivers/datalight/`; the boot uses the initramfs copies.
+- Module ABI: `vermagic=3.0.35 SMP preempt mod_unload ARMv7`, no `__versions` (no
+  MODVERSIONS CRCs). `flashfx.ko` depends only on `ffxos`; every hardware access of
+  `flashfx.ko` goes through the 75 symbols `ffxos.ko` exports (`FfxHookNTMX6*`, `FfxDclOs*`).
+- Header (bytes 64–127, u32 LE): three entries `{type, 20, size, sector}` — 1 = zImage
+  (2 404 776 B at sector 1), 2 = kernel command line (125 B at sector 4698), 1 = initramfs
+  (1 579 252 B gzip at sector 4699). Command line: `console=ttymxc1,115200 lpj=8495104
+  ldb=sin0 loglevel=3 usbcore.authorized_default=0 panic=23 mxc_vpu_mempool.max_instances=3`.
+- The rest of the disk (from ~3.99 MB to 22.9 MB, ~18.9 MB) is all `0xFE`: unused.
+- Kernel: `panic=23` (reboot 23 s after a panic, from the command line), `panic_on_oops=0`;
+  `kallsyms_lookup_name` exported; no kprobes.
+- Out-of-tree modules with a matching vermagic build against NXP `linux-imx` tag
+  `rel_imx_3.0.35_4.1.0_ga_caf` with gcc 4.9.4 (`arm-linux-gnueabi`) and the stock config
+  from `configs.ko`. The stock board option `CONFIG_MACH_MX6Q_CMU` does not exist in the NXP tree;
+  without a replacement `oldconfig` drops `ARCH_MX6Q` and with it `SMP`. Substituting
+  `CONFIG_MACH_MX6Q_SABREAUTO=y` keeps `SMP`; the result differs only in board-specific drivers.
+  `.gnu.linkonce.this_module` is 0x14c bytes with `init`/`exit` at 0xbc/0x144, identical to
+  stock modules, so `struct module` layout matches. A module built this way loads and unloads
+  cleanly on the unit (insmod/rmmod, verified).
+
 Not verified here (community claims): IBC2 load address OCRAM `0x00912000`, entry `0x009126E0`;
 IBC2 building a device tree from the header; HABv4 not enabled.

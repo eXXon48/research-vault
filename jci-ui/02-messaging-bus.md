@@ -36,10 +36,13 @@ successful connect calls `framework._restartCMU(...)` (hard GUI restart). Reload
 
 **Ordering / sequence counter.** The raw MMUI frame may carry a trailing
 sequence byte (`_isTargetMsg` detects `ctxtChg`/`focusStack`/`transition` by
-substring). `onmessage` reorders these three types by a wait-seq counter so a
+substring). `onmessage` is meant to reorder these three types by a wait-seq counter so a
 `ctxtChg` and its matching `focusStack`/`transition` are delivered as a set and
 in order. After 50 received messages it force-flushes any stuck wait queue.
-*You almost never touch this; just know frames can be reordered/queued.*
+In the stock file this does not work: queued `focusStack`/`transition` are never
+matched and the flush discards them (parse error), so focus-only changes and
+some transitions are lost. Details: cmu150-re/HMI Performance Levers, "The wait
+queue loses messages".
 
 **Framework-busy queueing.** `routeMmuiMsg` only acts in
 `_FWK_STATE_IDLE`; otherwise it pushes `{socketType:"mmui", msg}` to `_msgQueue`

@@ -197,6 +197,10 @@ second slower overall; the pattern is identical.
   triggered: favorites, backupparking, netmgmt, amradio, cd, ecoenergy, warnguide, dab,
   xmdata, satradio, tutorial. On an EU car, xmdata and satradio (SiriusXM) are dead weight,
   and together they cost about 1 s.
+- **Removing an app's UIA `<Config>` from `/jci/mmui/mmui_config.xml` stops these messages at
+  the source.** With the Config of xmdata, xmaudio, satradio, hdtrafficimage, tv, dvd,
+  aharadio, pandora and stitcher removed, MMUI sent no `msg` for those `uiaId`s during a whole
+  boot (a GUI-side counter logged 0), so the app never loads at boot without any GUI change.
 - Per-app script load (fetch + parse + run): vehsettings 1.2–2.0 s, xmdata 0.6–0.75 s,
   syssettings/system/common/sysupdate about 0.5 s each, most others 0.05–0.4 s.
   `_initApp` itself is 1–50 ms. Parse dominates, not init.

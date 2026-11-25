@@ -109,6 +109,16 @@ Hardware platform, root filesystem and firmware update behaviour of the CMU150. 
   version string `MAZ_CMU-150_74.00.324A`). The fail-safe version on a unit is a separate value
   and may be older if the unit was updated with a package without that step; read it with
   `/jci/scripts/jci-failsafe-version.sh` ([[Boot Chain and Fail-Safe]]).
+- The HMI shows both versions under **Settings → System → About → Version Info**
+  (`sysupdateApp`, context `SoftwareInfo`, a three-line dialog): `OS Version is <ver> <region/nav>`,
+  `Music Database Version is <ver>`, and `Fail Safe Version is <ver>` (or
+  `Fail Safe Version Not Available` when no fail-safe version is known). Strings from
+  `apps/sysupdate/js/sysupdateAppDict_en_US.js` (74.00.324A).
+  On a 74.00.324A EU unit the dialog reads `OS Version is 74.00.324 EU N`,
+  `Music Database Version is 00.12.003`, `Fail Safe Version is 74.00.324`: the trailing `A`
+  is not shown. The menu item is labelled **Version Information**. From the GUI it opens with
+  `Global.IntentSettingsTab {settingsTab:"System"}` → `syssettings SelectAbout` →
+  `syssettings SelectVersion`.
 - The `.up` update file is a zip (store method); some entries are encrypted.
 - Root fs payload in `rootfs1upd/`: `execute.ini` copies `rootfs.tar.gz`,
   `rootfs.md5` and `update_rootfs.sh` to `/tmp` and runs the script.

@@ -131,6 +131,45 @@ Defining both on the prototype (same bodies) removes the exception. The bodies c
 message strings, so they return `false` in practice; the effect of the fix is that the rest
 of the handler runs.
 
+### The wait queue loses messages (stock 74.00.324A, md5 `426032e998ca371914360217fff01993`)
+
+Read from the stock file; not yet confirmed in a unit log. With or without the prototype fix:
+
+- **Queued `focusStack` / `transition` are never delivered on their set.** They are pushed as
+  `[jsonStr, seq]` (lines 310, 323, 340); `ctxtChg` is pushed as a bare string (line 286).
+  `_isStack` compares element `[0]` (the whole JSON text) with the literal `"focusStack"` /
+  `"transition"`, so it never matches and `_delStack` never removes anything.
+- **The force flush drops them.** Every 50 received messages (`mRecvMsgCounterLimit`, line 30)
+  the handler passes each queued element to `_doRouteMmuiMsg` (line 216). An array element is
+  coerced to `"<json>,<seq>"`, `JSON.parse` fails, and the message is discarded with
+  `Unable to parse incoming MMUI message`. Queued `ctxtChg` strings parse and are delivered
+  late. The counter is reset to 0 when the first element enters an empty queue, so the flush
+  comes 50 messages after that.
+- **A `focusStack` with no `ctxtChg` in its set is always queued.** The expected seq
+  (`mMmuiWebsocketWaitSeqCounter`) changes only when a `ctxtChg` arrives on an empty queue or
+  when a message is queued. A focus-only change (new seq, no screen change) differs from it,
+  so it is queued and later dropped by the flush.
+- **A non-empty queue holds back screen changes.** While the queue is not empty, a `ctxtChg`
+  whose seq differs from the expected seq is queued without updating it (lines 279-286), and
+  the rest of that set follows it into the queue. Screen changes then wait for the flush.
+- **A `transition` before its `focusStack`** (`mDoFocus != seq`, line 320) is queued and is lost
+  the same way. A lost `transition` with `enabled:false` leaves the framework in the transition
+  state (see jci-ui/02-messaging-bus).
+- **After a GUI restart** the seq globals (lines 27-28) start again at 0 while the native side
+  keeps its counter, so the first `focusStack` / `transition` sets mismatch and are queued.
+
+Not established from the GUI side: whether the native sender emits each set's messages in seq
+order on one socket, which would make arrival-order delivery (no queue) correct.
+
+A replacement handler that strips the sequence byte with the stock rule (`_isTargetMsg` on
+the raw frame, drop the last character) and routes every frame at once was checked in desktop
+Opera 12.10 (Presto): the routed text equals the stock extraction for ctxtChg, focusStack,
+transition and non-target frames (seq bytes 0, 7, 9, 255; non-Latin text), and arrival order is
+kept. Presto exposes `ArrayBuffer.length` (3 for a 3-byte buffer), which the stock code relies on.
+
+Check on a unit (read-only): count `push message to waitMsgArray` and
+`Unable to parse incoming MMUI message` in `/var/log/running_log/log`.
+
 ## Related
 
 - KB - CMU150 Display Architecture
