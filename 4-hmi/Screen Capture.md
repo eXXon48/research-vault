@@ -5,7 +5,7 @@ tags: [cmu150, screenshot, display, reference]
 # Screen Capture
 
 How the composited HMI screen can be captured as a PNG on the CMU150. Firmware `74.00.324A`.
-Related: [[KB - CMU150 Display Architecture]], [[SSH Access]].
+Related: [[Display Architecture]], [[SSH Access]].
 
 ## The tool
 `/usr/bin/screenshot` is a **Wayland client** (links `libwayland-client/egl/cursor`, uses

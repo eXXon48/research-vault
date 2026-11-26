@@ -5,7 +5,7 @@ tags: [cmu150, gps, lds, vehicle-data]
 # GPS (LDS)
 
 GPS on the CMU150 is owned by the Location Data Service (LDS). Firmware `cmu150_EU_74.00.324A`.
-Part of [[CMU150]]; board/config selection in [[Hardware and Firmware]] ("Board type and SM
+Part of [[README|CMU150 research]]; board/config selection in [[Hardware and Firmware]] ("Board type and SM
 config selection"); vehicle-bus data path in [[Custom Apps (HMI)]].
 
 ## Files (`/jci/lds/`)

@@ -2,10 +2,10 @@
 tags: [cmu150, vin, dbus, vehicle]
 ---
 
-# CMU150 Vehicle VIN
+# Vehicle VIN
 
 How the vehicle VIN can be read on the CMU150. Firmware `74.00.324A`.
-Related: [[CMU150 Users and Privileges]].
+Related: [[Users and Privileges]].
 
 ## D-Bus method
 - Service `com.jci.vbs.navi`, object `/com/jci/vbs/navi`, interface `com.jci.vbs.navi`.

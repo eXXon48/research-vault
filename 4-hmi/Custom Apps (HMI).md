@@ -6,7 +6,7 @@ tags: [cmu150, hmi, custom-apps, gauges, reference]
 
 Community "gauges / custom apps" (boost, oil, G-meter, speedo…) are extra HTML5/JS apps
 loaded into the stock HMI. Firmware `74.00.324A` (GUI dated Aug 2022) contains the framework
-they target. Related: [[jci-ui/README]].
+they target. Related: [[4-hmi/jci-ui/README|HMI framework reference]].
 
 ## HMI architecture (JCI-IHU, Johnson Controls, 2011-2012 code)
 - `/jci/gui/index.html` loads the framework, then `framework.init()` (GuiFramework.js).
@@ -15,7 +15,7 @@ they target. Related: [[jci-ui/README]].
   +localization dicts). On load it self-registers via
   `GuiFramework.registerAppLoaded(uiaId, controlList, hasLangSupport)`.
 - Stock apps: `fmradio`, `syssettings`, `vehsettings`, `ecoenergy`, `emnavi`,
-  `androidauto`, `carplay`, … (see [[jci-ui/apps-inventory]]).
+  `androidauto`, `carplay`, … (see [[apps-inventory]]).
 
 ## Extension points in 74.00.324A
 Three mechanisms are present and ungated:

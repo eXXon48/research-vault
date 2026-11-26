@@ -6,7 +6,7 @@ tags: [cmu150, boot, sm, services, ipc, reference]
 
 Map of every service the System Manager (`/jci/sm/sm`) runs: why each starts, what it talks to,
 and how SM handles failures. Also covers which chains gate the Home screen, Android Auto (AA) and
-CarPlay. Firmware `cmu150_EU_74.00.324A`, legacy board (`/jci/sm/sm.conf`). Part of [[CMU150]].
+CarPlay. Firmware `cmu150_EU_74.00.324A`, legacy board (`/jci/sm/sm.conf`). Part of [[README|CMU150 research]].
 Timings come from [[Boot Timeline]]; the SM command-line tool is in [[SM Service Control (smctl)]].
 
 Sources:

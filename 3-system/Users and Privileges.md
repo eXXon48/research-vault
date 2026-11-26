@@ -2,7 +2,7 @@
 tags: [cmu150, security, users]
 ---
 
-# CMU150 Users and Privileges
+# Users and Privileges
 
 Who owns the stock files and which uids the running processes use. Firmware `74.00.324A`.
 Related: [[SSH Access]], [[config-mfg Keys Partition]].

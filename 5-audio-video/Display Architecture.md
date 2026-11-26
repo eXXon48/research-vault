@@ -5,7 +5,7 @@ tags: [cmu150, display, wayland, kb]
 # KB — CMU150 Display Architecture
 
 Stock display/compositor stack of firmware `74.00.324A`, including an ELF analysis of
-`jci_cpu_gauge`. Companion to [[KB - CMU150 Audio Architecture]].
+`jci_cpu_gauge`. Companion to [[Audio Architecture]].
 
 ## Stack = Wayland + GENIVI IVI-shell
 
@@ -62,4 +62,4 @@ is the on-device example: lightweight, hard-key toggled, VIM-input capable,
 Opera-independent. It needs the compositor and VIM, so it exists only in the SM era (after the
 service manager has started them), not earlier in boot.
 
-See also [[KB - CMU150 Audio Architecture]].
+See also [[Audio Architecture]].

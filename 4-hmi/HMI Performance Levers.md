@@ -172,6 +172,6 @@ Check on a unit (read-only): count `push message to waitMsgArray` and
 
 ## Related
 
-- KB - CMU150 Display Architecture
+- Display Architecture
 - SM Service Control (smctl)
 - jci-ui/01-architecture-and-boot

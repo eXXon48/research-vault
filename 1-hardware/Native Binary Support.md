@@ -5,7 +5,17 @@ tags: [cmu150, native, arm, kernel, toolchain, uinput]
 # Native Binary Support
 
 What kind of native executable the CMU150 runs, how to build one, and how `uinput` behaves
-on the unit. Firmware `74.00.324A`. Related: [[Hardware and Firmware]].
+on the unit.
+
+## Overview
+
+The unit runs soft-float ARM EABI binaries on Linux 3.0.35. The rootfs has runtime libraries
+only, with no headers or static libraries, so nothing can be built or linked on the unit.
+Statically linked musl executables built on a PC run as they are. Current static glibc
+binaries do not: they require a newer kernel. The stock image has no input-injection tools,
+so a virtual input device through `/dev/uinput` needs your own native binary.
+
+Related: [[Hardware and Firmware]].
 
 ## Target ABI
 - Kernel: Linux 3.0.35 (`/lib/modules/3.0.35/`). SoC i.MX6, Cortex-A9 (armv7, VFPv3, NEON). `/proc/cpuinfo`: `ARMv7 Processor rev 10 (v7l)`, `Features: swp half thumb fastmult vfp edsp neon vfpv3`.
@@ -41,7 +51,7 @@ A small C probe builds to about 86 KB.
   native binary.
 - `uinput.ko` is a loadable module: `/lib/modules/3.0.35/kernel/drivers/input/misc/uinput.ko`.
   On a running unit it is loaded at boot and `/dev/uinput` exists (`c 10,223`, root only, see
-  [[CMU150 Users and Privileges]]). The node is not present in the rootfs image because
+  [[Users and Privileges]]). The node is not present in the rootfs image because
   devtmpfs populates `/dev` at runtime.
 - Kernel 3.0.35 supports only the legacy uinput API. `UI_DEV_SETUP` and `UI_GET_SYSNAME`
   (kernel 4.5+) do not exist. Sequence: `open("/dev/uinput", O_WRONLY|O_NONBLOCK)` →
@@ -51,3 +61,7 @@ A small C probe builds to about 86 KB.
   `/proc/bus/input/devices`.
 - With stock nodes `event0`–`event5` present, a created device appears as `event6` and is
   removed again on `UI_DEV_DESTROY`.
+
+## Verified on
+
+Firmware `cmu150_EU_74.00.324A`.

@@ -6,7 +6,7 @@ tags: [cmu150, boot, sm, timing]
 
 When the System Manager (SM) stages and the big services start in a normal boot, and what the
 stage graph waits on. Firmware `cmu150_EU_74.00.324A`, legacy board (`/jci/sm/sm.conf`).
-Part of [[CMU150]]; NOR/boot-loader side in [[Boot Chain and Fail-Safe]], SM tool in
+Part of [[README|CMU150 research]]; NOR/boot-loader side in [[Boot Chain and Fail-Safe]], SM tool in
 [[SM Service Control (smctl)]]. Service-level dependency and IPC map in [[SM Service Graph]].
 
 Sources: one boot's SM event dump (`PID,Component,Event,Timestamp`, timestamps = seconds since

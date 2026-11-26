@@ -52,5 +52,5 @@ partition — no rootfs edit required.
 
 ## Related
 
-Companion CMU150 notes: [[KB - CMU150 Audio Architecture]],
-[[KB - CMU150 Display Architecture]], [[Custom Apps (HMI)]].
+Companion CMU150 notes: [[Audio Architecture]],
+[[Display Architecture]], [[Custom Apps (HMI)]].

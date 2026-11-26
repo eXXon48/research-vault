@@ -5,7 +5,7 @@ tags: [busybox, moc]
 # BusyBox commands
 
 Reference for the CMU's BusyBox, taken from the on-unit `--help` output.
-Platform notes and reverse-engineering findings: [[CMU150]].
+Platform notes and reverse-engineering findings: [[README|CMU150 research]].
 
 - **Build:** `BusyBox v1.19.2 (2020-02-14 18:04:06 JST) multi-call binary.`
 - **Applets:** 274

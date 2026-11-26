@@ -5,7 +5,7 @@ tags: [cmu150, boot, nor, failsafe, reflash]
 # Boot Chain and Fail-Safe
 
 SPI-NOR layout, the `boot-select` flag, the fail-safe image format and who writes the flag.
-Firmware `cmu150_EU_74.00.324A`. Part of [[CMU150]]; storage overview in [[Partitions and Storage]],
+Firmware `cmu150_EU_74.00.324A`. Part of [[README|CMU150 research]]; storage overview in [[Partitions and Storage]],
 SM-stage timing in [[Boot Timeline]].
 
 Sources: kernel log (`m25p80` partition table, kernel command line), the official `.up`

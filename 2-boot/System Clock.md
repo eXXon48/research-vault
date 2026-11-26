@@ -4,7 +4,7 @@ tags: [cmu150, time, hmi]
 
 # System Clock
 
-How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[CMU150]].
+How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[README|CMU150 research]].
 
 - The Linux system clock (`CLOCK_REALTIME`) is **not set**: after boot it counts from the
   epoch (`date` → `Thu Jan  1 00:31:41 UTC 1970` at ~1900 s uptime). Anything relying on wall
@@ -177,4 +177,4 @@ How time is kept on the CMU150. Firmware `74.00.324A`. Part of [[CMU150]].
   `X509_CRL_verify`, `RSA_verify`, `PEM_read_X509_CRL`); it has no `X509_verify_cert` /
   `X509_cmp_time` / `check_time` strings, so its checks do not depend on the system clock.
 
-See [[jci-ui/05-framework-modules]] for the `framework.common` API.
+See [[05-framework-modules]] for the `framework.common` API.

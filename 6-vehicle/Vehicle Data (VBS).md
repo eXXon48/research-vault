@@ -6,7 +6,7 @@ tags: [cmu150, vehicle-data, vbs, can, dbus]
 
 Which vehicle signals reach the CMU150 userland and over which interfaces. Firmware
 `cmu150_EU_74.00.324A`, from the stock root filesystem (static analysis only: symbol names,
-config files; no live capture). Part of [[CMU150]]; HMI side in [[Custom Apps (HMI)]]; GPS in
+config files; no live capture). Part of [[README|CMU150 research]]; HMI side in [[Custom Apps (HMI)]]; GPS in
 [[GPS (LDS)]].
 
 ## Data path

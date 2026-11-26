@@ -41,7 +41,7 @@ substring). `onmessage` is meant to reorder these three types by a wait-seq coun
 in order. After 50 received messages it force-flushes any stuck wait queue.
 In the stock file this does not work: queued `focusStack`/`transition` are never
 matched and the flush discards them (parse error), so focus-only changes and
-some transitions are lost. Details: cmu150-re/HMI Performance Levers, "The wait
+some transitions are lost. Details: [[HMI Performance Levers]], "The wait
 queue loses messages".
 
 **Framework-busy queueing.** `routeMmuiMsg` only acts in

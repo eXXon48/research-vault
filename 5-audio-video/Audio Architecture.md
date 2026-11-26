@@ -6,8 +6,8 @@ tags: [cmu150, audio, alsa, kb]
 
 How audio works on the Mazda CMU150 (firmware `74.00.324A`): the stack from a source down to
 the amplifier, how the stock players drive it, and the interface for feeding PCM. Source
-registration details are in [[KB - CMU150 Audio Source Registration]]; display in
-[[KB - CMU150 Display Architecture]].
+registration details are in [[Audio Source Registration]]; display in
+[[Display Architecture]].
 
 > **Scope:** the stock audio stack of firmware `74.00.324A`. Lines marked *(inferred)* are
 > derived from footprint and known behaviour, not stated verbatim in the firmware. Paths are
@@ -172,7 +172,7 @@ souphttpsrc location=<url> ! decodebin ! audioconvert ! audioresample ! alsasink
 
 ## 8. Open questions
 
-- Registration of a `Media` source is documented in [[KB - CMU150 Audio Source Registration]]
+- Registration of a `Media` source is documented in [[Audio Source Registration]]
   (D-Bus sessions/streams/focus on the AM; the mux inputs are softvol PCMs
   `entertainmentUsb` / `entertainmentBtsa` / `entertainmentMl`, §6 there). That note supersedes
   §3 ("matrix lists no apps") and §7 ("Loopback as external entry") here.

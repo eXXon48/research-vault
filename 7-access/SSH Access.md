@@ -5,7 +5,7 @@ tags: [cmu150, ssh, security]
 # SSH Access
 
 What the stock firmware ships for SSH, and why root-fs changes to it do not cause a boot loop.
-Part of [[CMU150]]. See also [[config-mfg Keys Partition]].
+Part of [[README|CMU150 research]]. See also [[config-mfg Keys Partition]].
 
 ## What the firmware ships
 `/etc/ssh/sshd_config` (OpenSSH):

@@ -6,8 +6,8 @@ tags: [cmu150, audio, audio-manager, dbus, kb]
 
 How an audio source (a "stream") is registered with, and selected through, the Audio Manager
 (AM) on the Mazda CMU150, firmware `74.00.324A`. Companion to
-[[KB - CMU150 Audio Architecture]] (stack overview, ALSA devices) and the `jci-ui` notes
-([[jci-ui/04-app-anatomy]] for Entertainment menu rows, [[jci-ui/02-messaging-bus]] for MMUI).
+[[Audio Architecture]] (stack overview, ALSA devices) and the `jci-ui` notes
+([[04-app-anatomy]] for Entertainment menu rows, [[02-messaging-bus]] for MMUI).
 
 > **Scope:** stock firmware only (Lua sources/bytecode, ELF strings, `sm.conf`, `asound.conf`).
 > Lines marked *(inferred)* are derived from constants or symbol names. Paths are on-device
@@ -115,7 +115,7 @@ in the loaded matrix: `Media`, `CPMedia`, `AAMedia` (`TypeGroup1`, mutually excl
 `AAGuidanceNoMix`, `AAVR`; priority-matrix names `SYSVR`, `BTRVR`, `EMAIL`, `PHONEBOOK`,
 `BTHFVOL`, `RINGTONEVOL`, `Navi`, `NaviAlt`, `NAVIVOL`. Verbs: `Allow`, `Switch`, `Deny`,
 `Suspend`, `Mix`, `NA`, plus priority verbs (`Prio_Switch`); semantics in
-[[KB - CMU150 Audio Architecture]] §3. `Media` requested while `Media` active = `Switch`
+[[Audio Architecture]] §3. `Media` requested while `Media` active = `Switch`
 (current stream terminated → client receives `lost`).
 
 The matrix also supports `typeOverrides` and `nameOverrides` (per-stream-name action overrides)
