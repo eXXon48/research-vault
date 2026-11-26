@@ -32,6 +32,7 @@ fine on GitHub. Part of [cmu-REvised](https://github.com/eXXon48/cmu-REvised).
 - [[Partitions and Storage]]: MTD layout, mounts, writable surfaces, what survives an update
 - [[config-mfg Keys Partition]]: the read-only keys and calibration squashfs
 - [[Native Binary Support]]: executable format, ABI, toolchain notes
+- [[FlashFX Read Path]]: how the root filesystem is read from NAND and what it costs
 
 ### 2. Boot (`2-boot/`)
 - [[Boot Chain and Fail-Safe]]: SPI-NOR layout, the `boot-select` flag, the fail-safe image
@@ -57,6 +58,7 @@ fine on GitHub. Part of [cmu-REvised](https://github.com/eXXon48/cmu-REvised).
 - [[Audio Architecture]]: audio stack, ALSA devices, Audio Manager arbitration
 - [[Audio Source Registration]]: Audio Manager D-Bus surface, stream types, mux PCMs
 - [[Display Architecture]]: Wayland/IVI-shell stack, native clients, factory test mode
+- [[Media Album Art]]: album art sources for USB and Bluetooth media, Gracenote
 
 ### 6. Vehicle interfaces (`6-vehicle/`)
 - [[Vehicle Data (VBS)]]: VBS modules, D-Bus names, vehicle signals, what reaches the HMI

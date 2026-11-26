@@ -4,14 +4,36 @@ tags: [cmu150, boot, nor, failsafe, reflash]
 
 # Boot Chain and Fail-Safe
 
-SPI-NOR layout, the `boot-select` flag, the fail-safe image format and who writes the flag.
-Firmware `cmu150_EU_74.00.324A`. Part of [[README|CMU150 research]]; storage overview in [[Partitions and Storage]],
-SM-stage timing in [[Boot Timeline]].
+How the CMU150 boots: the SPI-NOR layout, the `boot-select` flag that chooses between the
+normal and the fail-safe system, the fail-safe image and the normal-mode kernel.
 
-Sources: kernel log (`m25p80` partition table, kernel command line), the official `.up`
-(`fail-safe/`, `ibc1/`, `ibc2/`, `bootstrap/` entries), the stock root filesystem and the
-fail-safe initramfs. Community documentation (silverchris `mazda-cmu-documentation`) agrees
-with every value below that is marked verified.
+## Overview
+
+The first-stage loader in SPI-NOR reads one byte, the `boot-select` flag. Erased (`0xFF`)
+means normal boot through IBC1; `0x00` means fail-safe boot through IBC2. The normal system
+boots a kernel and initramfs from FlashFX disk 0, then mounts relfs as root and starts the
+System Manager. The fail-safe system is a kernel and initramfs in its own 7 MiB NOR
+partition; it runs only the reflash application. Stock software writes the flag in two cases:
+the updater sets it to continue an install in the fail-safe system, and the fail-safe
+reflash clears it at the end.
+
+```
+Bootstrap (mtd0) → reads boot-select
+  ├─ 0xFF → IBC1 (mtd2) → Linux 3.0.35 → init_cmu → /usr/bin/autostart
+  │                       → start_normal_mode.sh → SM (/jci/sm/sm)
+  └─ 0x00 → IBC2 (mtd3) → kernel + initramfs from mtd7 → /sbin/init → reflash_app
+```
+
+Related: [[Partitions and Storage]], [[Firmware Update]], [[Boot Timeline]].
+
+Sources:
+
+- the kernel log (`m25p80` partition table, kernel command line);
+- the official `.up` (`fail-safe/`, `ibc1/`, `ibc2/`, `bootstrap/` entries);
+- the stock root filesystem and the fail-safe initramfs.
+
+Sections marked "verified" were checked against these sources. Community documentation
+(silverchris `mazda-cmu-documentation`) agrees with every verified value.
 
 ## SPI-NOR layout (verified)
 Chip: `m25p80 spi0.0: found mx25l6405d, expected s25fl064p` → Macronix MX25L6405D, 8 MiB,
@@ -112,12 +134,6 @@ Records in 74.00.324A (offsets in 512-byte blocks from image start):
 - USB package discovery in fail-safe uses the same `jci-autoupdate` + single `*.up` convention as
   normal mode (same strings and regex `.+[.]up$` in `reflash_app`).
 
-## Boot chain (partly verified)
-Bootstrap (`mtd0`) → reads `boot-select` → IBC1 (`mtd2`, normal) or IBC2 (`mtd3`, fail-safe) →
-Linux 3.0.35. Normal mode: kernel → `init_cmu` → `/usr/bin/autostart` →
-`start_normal_mode.sh` → SM (`/jci/sm/sm`). Fail-safe: kernel + initramfs from `mtd7` →
-`/sbin/init` above.
-
 ## Normal-mode kernel and initramfs (verified, read-only dump of `/dev/ffx00`)
 - `/dev/ffx00` (FlashFX disk 0, 22 908 928 bytes, no partition table) starts with the magic
   `TOOB`; a zImage starts at offset 512 (2 404 776 bytes) and a gzip initramfs at offset
@@ -148,5 +164,14 @@ Linux 3.0.35. Normal mode: kernel → `init_cmu` → `/usr/bin/autostart` →
   stock modules, so `struct module` layout matches. A module built this way loads and unloads
   cleanly on the unit (insmod/rmmod, verified).
 
-Not verified here (community claims): IBC2 load address OCRAM `0x00912000`, entry `0x009126E0`;
-IBC2 building a device tree from the header; HABv4 not enabled.
+## Verified on
+
+Firmware `cmu150_EU_74.00.324A`, legacy board.
+
+## Open questions
+
+These community claims are not verified here:
+
+- IBC2 load address OCRAM `0x00912000`, entry `0x009126E0`.
+- IBC2 builds a device tree from the header.
+- HABv4 (secure boot) is not enabled.
