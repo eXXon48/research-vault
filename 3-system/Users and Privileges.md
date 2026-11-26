@@ -59,17 +59,29 @@ Related: [[SSH Access]], [[config-mfg Keys Partition]].
 `/dev` is a devtmpfs, mounted read-write (RAM). Node owner and mode can be changed at runtime; the
 change is lost on reboot.
 
-### D-Bus system bus
+### D-Bus
 
-`/etc/dbus-1/system.conf`:
+**Standard system bus** (`/etc/dbus-1/system.conf`):
 
 - The default policy denies `send_type="method_call"` and denies owning names.
 - `system.d/` holds one policy, `<policy user="root">`.
 
-Method calls to system-bus services (Audio Manager, SafeReboot and others) are therefore available
-to root only. The policy files are on the read-only rootfs.
+Method calls on the standard system bus are therefore available to root only.
+
+**JCI service and HMI buses** (`/tmp/dbus_service_socket`, `/tmp/dbus_hmi_socket`): separate
+`dbus-daemon` instances with their own configuration (`/etc/dbus-1/service.conf`,
+`service.d/jci_service.conf`, `hmi.d/jci_hmi.conf`). They have `<allow_anonymous/>` and an
+allow-all default policy ([[Audio Source Registration]], "D-Bus surface";
+[[SM Service Graph]], "D-Bus").
+
+All policy files are on the read-only rootfs.
 
 ## Verified on
 
 Firmware `cmu150_EU_74.00.324A`: stock rootfs image for file ownership, bench unit for processes and
 device nodes.
+
+## Open questions
+
+- The socket owner and mode of the JCI service and HMI buses, and whether a non-root process can
+  connect to them.
