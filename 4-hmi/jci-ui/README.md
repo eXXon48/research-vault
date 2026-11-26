@@ -2,9 +2,9 @@
 tags: [cmu150, hmi, jci-ui, moc]
 ---
 
-# JCI HMI UI — Reverse-Engineering & API Reference
+# HMI Framework Reference
 
-**What this is:** a standalone reference vault describing how the Mazda CMU150
+**What this is:** a reference for how the Mazda CMU150
 (JCI / Johnson Controls "IHU") head-unit **HMI GUI** works: the paths, globals,
 functions, message names and config keys of the UI, and its extension points.
 

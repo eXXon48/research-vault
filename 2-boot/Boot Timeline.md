@@ -601,7 +601,9 @@ One boot, ~5 min uptime:
 
 - SM events: copy `/tmp/smevents.txt` after each boot.
 - Screens: grep `ctxtChg` in `/var/log/running_log/log` within ~15 minutes of the boot, before the
-  lines rotate out.
+  lines rotate out. Rotated lines are in the gzip tar archives in the same directory:
+  `tar -xzOf log_0000.tar.gz | grep -a <text>`. GUI lines carry the tag
+  `GUI_<APP>[pid] <Level> (<file>:<line> )`.
 - Stopwatch against the log: screen dark to kernel start is about 5 s. Measured from the moment
   the screen went dark on a `GenericReboot(0)` (b46):
 

@@ -195,7 +195,7 @@ second slower overall; the pattern is identical.
   script to load, parse and init. About 22 apps load before HomeScreen.
 - **The Disclaimer `ctxtChg` waits 4–7 s in the queue** behind loads that data-only messages
   triggered: favorites, backupparking, netmgmt, amradio, cd, ecoenergy, warnguide, dab,
-  xmdata, satradio, tutorial. On an EU car, xmdata and satradio (SiriusXM) are dead weight,
+  xmdata, satradio, tutorial. On an EU car, xmdata and satradio (SiriusXM) are not used,
   and together they cost about 1 s.
 - **Removing an app's UIA `<Config>` from `/jci/mmui/mmui_config.xml` stops these messages at
   the source.** With the Config of xmdata, xmaudio, satradio, hdtrafficimage, tv, dvd,
